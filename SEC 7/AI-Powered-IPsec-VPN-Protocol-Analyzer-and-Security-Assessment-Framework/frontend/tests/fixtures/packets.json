@@ -1,0 +1,678 @@
+{
+ "status": {
+  "state": "COMPLETED",
+  "analyzer_available": true,
+  "supported_formats": [
+   "pcap",
+   "pcapng"
+  ],
+  "max_upload_bytes": 26214400,
+  "max_packets": 50000,
+  "capture": {
+   "format": "pcap",
+   "link_type": 1,
+   "link_type_name": "Ethernet",
+   "packet_count": 7,
+   "truncated": false,
+   "filename": "fixture.pcap",
+   "loaded_at": "2026-09-03T01:35:03+00:00"
+  },
+  "statistics": {
+   "total_packets": 7,
+   "ipsec_packets": 4,
+   "ike_packets": 2,
+   "esp_packets": 1,
+   "ah_packets": 1,
+   "malformed_packets": 1
+  },
+  "protocol_counts": {
+   "IKE": 2,
+   "ESP": 1,
+   "AH": 1,
+   "TCP": 1,
+   "UDP": 0,
+   "ICMP": 1,
+   "OTHER": 1
+  },
+  "last_error": null
+ },
+ "page": {
+  "items": [
+   {
+    "id": "c9b7d81f09e8485aa1a6482c10a483a5",
+    "number": 1,
+    "timestamp": "2023-11-14T22:13:20.000000+00:00",
+    "source": "192.0.2.10",
+    "destination": "198.51.100.20",
+    "protocol": "IKE",
+    "length": 122,
+    "info": "IKEv2 IKE_SA_INIT msg=0 [SA, KE, Nonce]",
+    "parse_status": "OK",
+    "ipsec_type": "IKE",
+    "nat_traversal": false
+   },
+   {
+    "id": "b435aca010314556a21aae8b819e7d41",
+    "number": 2,
+    "timestamp": "2023-11-14T22:13:21.000000+00:00",
+    "source": "192.0.2.10",
+    "destination": "198.51.100.20",
+    "protocol": "ESP",
+    "length": 74,
+    "info": "ESP SPI=0xc0ffee01 seq=7 payload=32 bytes (encrypted)",
+    "parse_status": "OK",
+    "ipsec_type": "ESP",
+    "nat_traversal": false
+   },
+   {
+    "id": "2ce73becdf33428699dc523524ab02d5",
+    "number": 3,
+    "timestamp": "2023-11-14T22:13:22.000000+00:00",
+    "source": "192.0.2.10",
+    "destination": "198.51.100.20",
+    "protocol": "AH",
+    "length": 58,
+    "info": "AH SPI=0xabcd0001 seq=3 next=UDP ICV=12 bytes",
+    "parse_status": "OK",
+    "ipsec_type": "AH",
+    "nat_traversal": false
+   },
+   {
+    "id": "516a8d2c282d4fffa03e50710c363423",
+    "number": 4,
+    "timestamp": "2023-11-14T22:13:23.000000+00:00",
+    "source": "192.0.2.10",
+    "destination": "198.51.100.20",
+    "protocol": "TCP",
+    "length": 54,
+    "info": "TCP 51234 \u2192 443 [SYN] seq=1000 win=65535",
+    "parse_status": "OK",
+    "ipsec_type": null,
+    "nat_traversal": false
+   },
+   {
+    "id": "19b222516dc448b9a75882ddb750eff9",
+    "number": 5,
+    "timestamp": "2023-11-14T22:13:24.000000+00:00",
+    "source": "192.0.2.10",
+    "destination": "198.51.100.20",
+    "protocol": "IKE",
+    "length": 118,
+    "info": "IKEv2 IKE_AUTH msg=1 [SK (Encrypted)]",
+    "parse_status": "OK",
+    "ipsec_type": "IKE",
+    "nat_traversal": true
+   },
+   {
+    "id": "90d7e0ad53ce4e9f97ef3e252ee1b890",
+    "number": 6,
+    "timestamp": "2023-11-14T22:13:25.000000+00:00",
+    "source": "192.0.2.10",
+    "destination": "198.51.100.20",
+    "protocol": "ICMP",
+    "length": 46,
+    "info": "ICMP Echo Request (type 8, code 0)",
+    "parse_status": "OK",
+    "ipsec_type": null,
+    "nat_traversal": false
+   },
+   {
+    "id": "9287ce220a92467cb01939c402acfd19",
+    "number": 7,
+    "timestamp": "2023-11-14T22:13:26.000000+00:00",
+    "source": "\u2014",
+    "destination": "\u2014",
+    "protocol": "OTHER",
+    "length": 16,
+    "info": "MALFORMED: IPv4 header needs 20 bytes, 2 available",
+    "parse_status": "MALFORMED",
+    "ipsec_type": null,
+    "nat_traversal": false
+   }
+  ],
+  "page": 1,
+  "page_size": 50,
+  "total": 7,
+  "total_pages": 1
+ },
+ "details": {
+  "c9b7d81f09e8485aa1a6482c10a483a5": {
+   "id": "c9b7d81f09e8485aa1a6482c10a483a5",
+   "number": 1,
+   "timestamp": "2023-11-14T22:13:20.000000+00:00",
+   "captured_length": 122,
+   "original_length": 122,
+   "source": "192.0.2.10",
+   "destination": "198.51.100.20",
+   "protocol": "IKE",
+   "length": 122,
+   "info": "IKEv2 IKE_SA_INIT msg=0 [SA, KE, Nonce]",
+   "layers": [
+    "Ethernet",
+    "IPv4",
+    "UDP",
+    "IKE"
+   ],
+   "ethernet": {
+    "source_mac": "02:00:00:00:00:01",
+    "destination_mac": "02:00:00:00:00:02",
+    "ethertype": "0x0800",
+    "vlan_id": null
+   },
+   "ip": {
+    "version": 4,
+    "source": "192.0.2.10",
+    "destination": "198.51.100.20",
+    "protocol_number": 17,
+    "protocol_name": "UDP",
+    "total_length": 108,
+    "ttl": 64,
+    "header_length": 20,
+    "identification": 4660,
+    "dont_fragment": true,
+    "more_fragments": false,
+    "fragment_offset": 0,
+    "traffic_class": null,
+    "flow_label": null
+   },
+   "transport": {
+    "kind": "UDP",
+    "source_port": 500,
+    "destination_port": 500,
+    "length": 88,
+    "checksum": 0
+   },
+   "ipsec": {
+    "type": "IKE",
+    "nat_traversal": false,
+    "nat_traversal_note": null,
+    "udp_port": 500,
+    "ike": {
+     "version": "2.0",
+     "major_version": 2,
+     "minor_version": 0,
+     "exchange_type": 34,
+     "exchange_name": "IKE_SA_INIT",
+     "initiator_spi": "0101010101010101",
+     "responder_spi": "0000000000000000",
+     "message_id": 0,
+     "flags": [
+      "Initiator"
+     ],
+     "length": 80,
+     "payloads": [
+      {
+       "type_number": 33,
+       "name": "SA",
+       "length": 12,
+       "critical": false
+      },
+      {
+       "type_number": 34,
+       "name": "KE",
+       "length": 20,
+       "critical": false
+      },
+      {
+       "type_number": 40,
+       "name": "Nonce",
+       "length": 20,
+       "critical": false
+      }
+     ],
+     "payload_count": 3,
+     "encrypted_payload": false
+    },
+    "esp": null,
+    "ah": null
+   },
+   "raw": {
+    "hex": "02000000000202000000000108004500006c1234400040110000c000020ac633641401f401f400580000010101010101010100000000000000002120220800000000000000502200000c000000000000000028000014000000000000000000000000000000000000001400000000000000000000000000000000",
+    "ascii": "..............E..l.4@.@........3d......X..................! \"........P\"...........(.......................................",
+    "length": 122,
+    "truncated": false
+   },
+   "flags": {
+    "encrypted": false,
+    "authenticated": false,
+    "fragmented": false,
+    "nat_t": false,
+    "malformed": false,
+    "incomplete": false
+   },
+   "parse_status": "OK",
+   "parse_error": null,
+   "parse_affected_protocol": null
+  },
+  "b435aca010314556a21aae8b819e7d41": {
+   "id": "b435aca010314556a21aae8b819e7d41",
+   "number": 2,
+   "timestamp": "2023-11-14T22:13:21.000000+00:00",
+   "captured_length": 74,
+   "original_length": 74,
+   "source": "192.0.2.10",
+   "destination": "198.51.100.20",
+   "protocol": "ESP",
+   "length": 74,
+   "info": "ESP SPI=0xc0ffee01 seq=7 payload=32 bytes (encrypted)",
+   "layers": [
+    "Ethernet",
+    "IPv4",
+    "ESP"
+   ],
+   "ethernet": {
+    "source_mac": "02:00:00:00:00:01",
+    "destination_mac": "02:00:00:00:00:02",
+    "ethertype": "0x0800",
+    "vlan_id": null
+   },
+   "ip": {
+    "version": 4,
+    "source": "192.0.2.10",
+    "destination": "198.51.100.20",
+    "protocol_number": 50,
+    "protocol_name": "ESP",
+    "total_length": 60,
+    "ttl": 64,
+    "header_length": 20,
+    "identification": 4660,
+    "dont_fragment": true,
+    "more_fragments": false,
+    "fragment_offset": 0,
+    "traffic_class": null,
+    "flow_label": null
+   },
+   "transport": null,
+   "ipsec": {
+    "type": "ESP",
+    "nat_traversal": false,
+    "nat_traversal_note": null,
+    "udp_port": null,
+    "ike": null,
+    "esp": {
+     "spi": "0xc0ffee01",
+     "sequence_number": 7,
+     "payload_length": 32,
+     "encrypted": true,
+     "authentication_data": "Not determinable: ICV length depends on the negotiated integrity algorithm."
+    },
+    "ah": null
+   },
+   "raw": {
+    "hex": "02000000000202000000000108004500003c1234400040320000c000020ac6336414c0ffee0100000007aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "ascii": "..............E..<.4@.@2.......3d.........................................",
+    "length": 74,
+    "truncated": false
+   },
+   "flags": {
+    "encrypted": true,
+    "authenticated": false,
+    "fragmented": false,
+    "nat_t": false,
+    "malformed": false,
+    "incomplete": false
+   },
+   "parse_status": "OK",
+   "parse_error": null,
+   "parse_affected_protocol": null
+  },
+  "2ce73becdf33428699dc523524ab02d5": {
+   "id": "2ce73becdf33428699dc523524ab02d5",
+   "number": 3,
+   "timestamp": "2023-11-14T22:13:22.000000+00:00",
+   "captured_length": 58,
+   "original_length": 58,
+   "source": "192.0.2.10",
+   "destination": "198.51.100.20",
+   "protocol": "AH",
+   "length": 58,
+   "info": "AH SPI=0xabcd0001 seq=3 next=UDP ICV=12 bytes",
+   "layers": [
+    "Ethernet",
+    "IPv4",
+    "AH"
+   ],
+   "ethernet": {
+    "source_mac": "02:00:00:00:00:01",
+    "destination_mac": "02:00:00:00:00:02",
+    "ethertype": "0x0800",
+    "vlan_id": null
+   },
+   "ip": {
+    "version": 4,
+    "source": "192.0.2.10",
+    "destination": "198.51.100.20",
+    "protocol_number": 51,
+    "protocol_name": "AH",
+    "total_length": 44,
+    "ttl": 64,
+    "header_length": 20,
+    "identification": 4660,
+    "dont_fragment": true,
+    "more_fragments": false,
+    "fragment_offset": 0,
+    "traffic_class": null,
+    "flow_label": null
+   },
+   "transport": null,
+   "ipsec": {
+    "type": "AH",
+    "nat_traversal": false,
+    "nat_traversal_note": null,
+    "udp_port": null,
+    "ike": null,
+    "esp": null,
+    "ah": {
+     "next_header": 17,
+     "next_header_name": "UDP",
+     "payload_length": 4,
+     "spi": "0xabcd0001",
+     "sequence_number": 3,
+     "authentication_data": "111111111111111111111111",
+     "icv_length": 12
+    }
+   },
+   "raw": {
+    "hex": "02000000000202000000000108004500002c1234400040330000c000020ac633641411040000abcd000100000003111111111111111111111111",
+    "ascii": "..............E..,.4@.@3.......3d.........................",
+    "length": 58,
+    "truncated": false
+   },
+   "flags": {
+    "encrypted": false,
+    "authenticated": true,
+    "fragmented": false,
+    "nat_t": false,
+    "malformed": false,
+    "incomplete": false
+   },
+   "parse_status": "OK",
+   "parse_error": null,
+   "parse_affected_protocol": null
+  },
+  "516a8d2c282d4fffa03e50710c363423": {
+   "id": "516a8d2c282d4fffa03e50710c363423",
+   "number": 4,
+   "timestamp": "2023-11-14T22:13:23.000000+00:00",
+   "captured_length": 54,
+   "original_length": 54,
+   "source": "192.0.2.10",
+   "destination": "198.51.100.20",
+   "protocol": "TCP",
+   "length": 54,
+   "info": "TCP 51234 \u2192 443 [SYN] seq=1000 win=65535",
+   "layers": [
+    "Ethernet",
+    "IPv4",
+    "TCP"
+   ],
+   "ethernet": {
+    "source_mac": "02:00:00:00:00:01",
+    "destination_mac": "02:00:00:00:00:02",
+    "ethertype": "0x0800",
+    "vlan_id": null
+   },
+   "ip": {
+    "version": 4,
+    "source": "192.0.2.10",
+    "destination": "198.51.100.20",
+    "protocol_number": 6,
+    "protocol_name": "TCP",
+    "total_length": 40,
+    "ttl": 64,
+    "header_length": 20,
+    "identification": 4660,
+    "dont_fragment": true,
+    "more_fragments": false,
+    "fragment_offset": 0,
+    "traffic_class": null,
+    "flow_label": null
+   },
+   "transport": {
+    "kind": "TCP",
+    "source_port": 51234,
+    "destination_port": 443,
+    "sequence_number": 1000,
+    "acknowledgment_number": 0,
+    "flags": [
+     "SYN"
+    ],
+    "window": 65535,
+    "header_length": 20
+   },
+   "ipsec": null,
+   "raw": {
+    "hex": "0200000000020200000000010800450000281234400040060000c000020ac6336414c82201bb000003e8000000005002ffff00000000",
+    "ascii": "..............E..(.4@.@........3d..\"..........P.......",
+    "length": 54,
+    "truncated": false
+   },
+   "flags": {
+    "encrypted": false,
+    "authenticated": false,
+    "fragmented": false,
+    "nat_t": false,
+    "malformed": false,
+    "incomplete": false
+   },
+   "parse_status": "OK",
+   "parse_error": null,
+   "parse_affected_protocol": null
+  },
+  "19b222516dc448b9a75882ddb750eff9": {
+   "id": "19b222516dc448b9a75882ddb750eff9",
+   "number": 5,
+   "timestamp": "2023-11-14T22:13:24.000000+00:00",
+   "captured_length": 118,
+   "original_length": 118,
+   "source": "192.0.2.10",
+   "destination": "198.51.100.20",
+   "protocol": "IKE",
+   "length": 118,
+   "info": "IKEv2 IKE_AUTH msg=1 [SK (Encrypted)]",
+   "layers": [
+    "Ethernet",
+    "IPv4",
+    "UDP",
+    "IKE"
+   ],
+   "ethernet": {
+    "source_mac": "02:00:00:00:00:01",
+    "destination_mac": "02:00:00:00:00:02",
+    "ethertype": "0x0800",
+    "vlan_id": null
+   },
+   "ip": {
+    "version": 4,
+    "source": "192.0.2.10",
+    "destination": "198.51.100.20",
+    "protocol_number": 17,
+    "protocol_name": "UDP",
+    "total_length": 104,
+    "ttl": 64,
+    "header_length": 20,
+    "identification": 4660,
+    "dont_fragment": true,
+    "more_fragments": false,
+    "fragment_offset": 0,
+    "traffic_class": null,
+    "flow_label": null
+   },
+   "transport": {
+    "kind": "UDP",
+    "source_port": 4500,
+    "destination_port": 4500,
+    "length": 84,
+    "checksum": 0
+   },
+   "ipsec": {
+    "type": "IKE",
+    "nat_traversal": true,
+    "nat_traversal_note": "IKE carried after a 4-byte non-ESP marker on UDP/4500 (RFC 3948 \u00a72.2).",
+    "udp_port": 4500,
+    "ike": {
+     "version": "2.0",
+     "major_version": 2,
+     "minor_version": 0,
+     "exchange_type": 35,
+     "exchange_name": "IKE_AUTH",
+     "initiator_spi": "0101010101010101",
+     "responder_spi": "0000000000000000",
+     "message_id": 1,
+     "flags": [
+      "Initiator"
+     ],
+     "length": 72,
+     "payloads": [
+      {
+       "type_number": 46,
+       "name": "SK (Encrypted)",
+       "length": 44,
+       "critical": false
+      }
+     ],
+     "payload_count": 1,
+     "encrypted_payload": true
+    },
+    "esp": null,
+    "ah": null
+   },
+   "raw": {
+    "hex": "0200000000020200000000010800450000681234400040110000c000020ac6336414119411940054000000000000010101010101010100000000000000002e20230800000001000000480000002c00000000000000000000000000000000000000000000000000000000000000000000000000000000",
+    "ascii": "..............E..h.4@.@........3d......T....................... #........H...,........................................",
+    "length": 118,
+    "truncated": false
+   },
+   "flags": {
+    "encrypted": true,
+    "authenticated": false,
+    "fragmented": false,
+    "nat_t": true,
+    "malformed": false,
+    "incomplete": false
+   },
+   "parse_status": "OK",
+   "parse_error": null,
+   "parse_affected_protocol": null
+  },
+  "90d7e0ad53ce4e9f97ef3e252ee1b890": {
+   "id": "90d7e0ad53ce4e9f97ef3e252ee1b890",
+   "number": 6,
+   "timestamp": "2023-11-14T22:13:25.000000+00:00",
+   "captured_length": 46,
+   "original_length": 46,
+   "source": "192.0.2.10",
+   "destination": "198.51.100.20",
+   "protocol": "ICMP",
+   "length": 46,
+   "info": "ICMP Echo Request (type 8, code 0)",
+   "layers": [
+    "Ethernet",
+    "IPv4",
+    "ICMP"
+   ],
+   "ethernet": {
+    "source_mac": "02:00:00:00:00:01",
+    "destination_mac": "02:00:00:00:00:02",
+    "ethertype": "0x0800",
+    "vlan_id": null
+   },
+   "ip": {
+    "version": 4,
+    "source": "192.0.2.10",
+    "destination": "198.51.100.20",
+    "protocol_number": 1,
+    "protocol_name": "ICMP",
+    "total_length": 32,
+    "ttl": 64,
+    "header_length": 20,
+    "identification": 4660,
+    "dont_fragment": true,
+    "more_fragments": false,
+    "fragment_offset": 0,
+    "traffic_class": null,
+    "flow_label": null
+   },
+   "transport": {
+    "kind": "ICMP",
+    "type": 8,
+    "code": 0,
+    "checksum": 0,
+    "type_name": "Echo Request"
+   },
+   "ipsec": null,
+   "raw": {
+    "hex": "0200000000020200000000010800450000201234400040010000c000020ac6336414080000000000000000000000",
+    "ascii": "..............E.. .4@.@........3d.............",
+    "length": 46,
+    "truncated": false
+   },
+   "flags": {
+    "encrypted": false,
+    "authenticated": false,
+    "fragmented": false,
+    "nat_t": false,
+    "malformed": false,
+    "incomplete": false
+   },
+   "parse_status": "OK",
+   "parse_error": null,
+   "parse_affected_protocol": null
+  },
+  "9287ce220a92467cb01939c402acfd19": {
+   "id": "9287ce220a92467cb01939c402acfd19",
+   "number": 7,
+   "timestamp": "2023-11-14T22:13:26.000000+00:00",
+   "captured_length": 16,
+   "original_length": 16,
+   "source": "\u2014",
+   "destination": "\u2014",
+   "protocol": "OTHER",
+   "length": 16,
+   "info": "MALFORMED: IPv4 header needs 20 bytes, 2 available",
+   "layers": [
+    "Ethernet"
+   ],
+   "ethernet": {
+    "source_mac": "02:00:00:00:00:01",
+    "destination_mac": "02:00:00:00:00:02",
+    "ethertype": "0x0800",
+    "vlan_id": null
+   },
+   "ip": null,
+   "transport": null,
+   "ipsec": null,
+   "raw": {
+    "hex": "02000000000202000000000108004500",
+    "ascii": "..............E.",
+    "length": 16,
+    "truncated": false
+   },
+   "flags": {
+    "encrypted": false,
+    "authenticated": false,
+    "fragmented": false,
+    "nat_t": false,
+    "malformed": true,
+    "incomplete": false
+   },
+   "parse_status": "MALFORMED",
+   "parse_error": "IPv4 header needs 20 bytes, 2 available",
+   "parse_affected_protocol": "IPv4"
+  }
+ },
+ "empty_status": {
+  "state": "NOT INITIALIZED",
+  "analyzer_available": true,
+  "supported_formats": [
+   "pcap",
+   "pcapng"
+  ],
+  "max_upload_bytes": 26214400,
+  "max_packets": 50000,
+  "capture": null,
+  "statistics": null,
+  "protocol_counts": null,
+  "last_error": null
+ }
+}

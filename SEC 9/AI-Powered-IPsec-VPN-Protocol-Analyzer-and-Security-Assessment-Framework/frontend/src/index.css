@@ -1,0 +1,98 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Design tokens.
+ *
+ * Every colour in the application resolves to one of these variables through
+ * the Tailwind theme in `tailwind.config.js`. Change a value here and it
+ * changes everywhere. Components must not introduce raw hex values.
+ */
+@layer base {
+  :root {
+    /* Structure */
+    --color-background: 11 16 23;        /* #0B1017 page ground */
+    --color-surface: 18 26 36;           /* #121A24 panels, sidebar, header */
+    --color-elevated: 26 37 49;          /* #1A2531 cards raised above surface */
+    --color-border: 38 51 63;            /* #26333F hairlines and dividers */
+
+    /* Text */
+    --color-text-primary: 232 237 242;   /* #E8EDF2 headings, values */
+    --color-text-secondary: 169 182 196; /* #A9B6C4 body copy */
+    --color-text-muted: 111 127 143;     /* #6F7F8F labels, metadata */
+
+    /* Semantic state */
+    --color-success: 63 185 140;         /* #3FB98C healthy, online */
+    --color-warning: 224 163 62;         /* #E0A33E degraded, attention */
+    --color-danger: 224 92 92;           /* #E05C5C offline, critical */
+    --color-info: 79 155 217;            /* #4F9BD9 informational, active */
+
+    /* Layout metrics */
+    --sidebar-width: 16rem;
+    --sidebar-width-collapsed: 4.25rem;
+    --header-height: 3.5rem;
+
+    color-scheme: dark;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-background text-secondary font-sans antialiased;
+    font-feature-settings: 'cv02', 'cv03', 'cv04';
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply text-primary;
+    text-wrap: balance;
+  }
+
+  /* Focus is always visible and never communicated by colour alone. */
+  :focus-visible {
+    @apply outline-none ring-2 ring-info ring-offset-2 ring-offset-background;
+  }
+
+  ::selection {
+    @apply bg-info/30 text-primary;
+  }
+}
+
+@layer components {
+  /* Thin scrollbars keep dense panels from losing horizontal space. */
+  .scrollbar-slim {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--color-border)) transparent;
+  }
+
+  .scrollbar-slim::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .scrollbar-slim::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-border;
+  }
+
+  .scrollbar-slim::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

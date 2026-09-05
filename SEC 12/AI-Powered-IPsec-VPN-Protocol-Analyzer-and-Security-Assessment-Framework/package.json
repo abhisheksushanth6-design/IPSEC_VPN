@@ -1,0 +1,11 @@
+{
+  "name": "ai-powered-ipsec-vpn-protocol-analyzer",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/runner.js build-and-run",
+    "dev": "node scripts/runner.js dev",
+    "start": "node scripts/runner.js build-and-run"
+  }
+}

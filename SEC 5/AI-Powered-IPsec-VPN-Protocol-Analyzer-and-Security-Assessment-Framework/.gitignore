@@ -1,0 +1,56 @@
+# ---- Environment / secrets ----
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+secrets/
+
+# ---- Node / frontend ----
+node_modules/
+dist/
+build/
+.vite/
+*.tsbuildinfo
+npm-debug.log*
+yarn-error.log*
+
+# ---- Python / backend ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+.coverage.*
+
+# ---- Databases ----
+*.db
+*.sqlite
+*.sqlite3
+backend/data/
+
+# ---- Packet captures (never commit) ----
+*.pcap
+*.pcapng
+*.cap
+captures/
+
+# ---- Logs / temp ----
+logs/
+*.log
+tmp/
+*.tmp
+
+# ---- Editors / OS ----
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db

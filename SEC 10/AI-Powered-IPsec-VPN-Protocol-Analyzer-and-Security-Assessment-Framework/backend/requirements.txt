@@ -1,0 +1,11 @@
+# SECTION 0 — foundation dependencies only.
+# Scapy, scikit-learn and ReportLab are intentionally NOT listed: they belong
+# to later layers and would add install weight with no code to support.
+
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+pydantic-settings==2.7.0
+SQLAlchemy==2.0.36
+python-dotenv==1.0.1
+python-multipart==0.0.20

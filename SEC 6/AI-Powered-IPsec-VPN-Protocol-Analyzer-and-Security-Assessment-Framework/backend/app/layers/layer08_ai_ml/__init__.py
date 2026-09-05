@@ -1,0 +1,10 @@
+"""Layer 08 — AI / ML Anomaly Detection Engine.
+
+Status: NOT INITIALIZED.
+
+SECTION 0 placeholder. This package intentionally contains no
+implementation; its functionality is delivered in a later section.
+"""
+
+LAYER_NUMBER = 8
+LAYER_NAME = "AI / ML Anomaly Detection Engine"

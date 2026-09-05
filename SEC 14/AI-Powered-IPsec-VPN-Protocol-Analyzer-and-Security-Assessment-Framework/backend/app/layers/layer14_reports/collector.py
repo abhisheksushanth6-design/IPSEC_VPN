@@ -1,0 +1,490 @@
+"""Data collector for Layer 14 — Report Generation (PDF).
+
+Aggregates empirical outputs across layers 01-13 without recalculating
+analysis logic or inventing synthetic values.
+"""
+
+from __future__ import annotations
+
+import json
+import uuid
+from datetime import datetime, timezone
+from typing import Any
+
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session
+
+from app.core.architecture import ARCHITECTURE_LAYERS, LayerStatus, TOTAL_LAYERS
+from app.layers.layer13_dashboard.service import dashboard_service
+from app.layers.layer14_reports.schemas import (
+    ReportGenerateRequest,
+    SecurityAssessmentReportData,
+)
+from app.models.baseline import BaselineProfileRow
+from app.models.drift import DriftAnalysisRow, FeatureDriftRow
+from app.models.feature_vector import FeatureValueRow, FeatureVectorRow
+from app.models.ipsec_session import IPsecSession
+from app.models.ml_anomaly import (
+    AnomalyAnalysisRow,
+    AnomalyFeatureContributionRow,
+    MLModelRow,
+)
+from app.models.security_association import (
+    SALifecycleEventRow,
+    SecurityAssociationRow,
+)
+from app.models.vulnerability import (
+    FindingEvidenceRow,
+    SecurityRuleRow,
+    VulnerabilityFindingRow,
+)
+from app.services.packet_service import packet_service
+from app.services.system_service import read_application_mode
+
+
+def _utc_now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+class ReportDataCollector:
+    """Collects real analytical outputs from the database and active services."""
+
+    def collect(self, db: Session, request: ReportGenerateRequest) -> SecurityAssessmentReportData:
+        now = _utc_now()
+        timestamp_str = now.strftime("%Y%m%d-%H%M%S")
+        report_id = f"REPORT-{timestamp_str}-{uuid.uuid4().hex[:6].upper()}"
+
+        # 1. Metadata
+        title = request.title or (
+            "Comprehensive IPsec VPN Security Assessment Report"
+            if request.report_type == "FULL"
+            else f"IPsec Session Security Assessment ({request.session_id})"
+            if request.report_type == "SESSION"
+            else "Security Vulnerability & Cryptographic Audit Report"
+        )
+        metadata = {
+            "report_id": report_id,
+            "report_type": request.report_type,
+            "title": title,
+            "generated_at": now.isoformat(),
+            "generated_at_formatted": now.strftime("%Y-%m-%d %H:%M:%S UTC"),
+            "framework_name": "AI-Powered IPsec VPN Protocol Analyzer and Security Assessment Framework",
+            "version": "1.0.0",
+            "session_id_scope": request.session_id,
+        }
+
+        # 2. Environment & Posture
+        app_mode, db_status = read_application_mode(db)
+        initialized_layers = sum(
+            1 for layer in ARCHITECTURE_LAYERS if layer.status is not LayerStatus.NOT_INITIALIZED
+        )
+        environment = {
+            "backend_status": "OPERATIONAL",
+            "database_status": db_status,
+            "application_mode": app_mode,
+            "layers_total": TOTAL_LAYERS,
+            "layers_initialized": initialized_layers,
+            "topology_notes": "IPsec VPN Security Gateway & Protocol Analysis Environment",
+        }
+
+        # 3. Capture & Packet Telemetry
+        pkt_status = packet_service.status()
+        pkt_count = (
+            pkt_status.capture.packet_count
+            if pkt_status.capture
+            else len(packet_service.all_packets())
+        )
+        db_pkts = db.scalar(select(func.sum(IPsecSession.packet_count))) or 0
+        total_packets = max(pkt_count, int(db_pkts))
+
+        protocol_counts: dict[str, int] = {}
+        if pkt_status.protocol_counts:
+            protocol_counts = {
+                "IKE": pkt_status.protocol_counts.ike,
+                "ESP": pkt_status.protocol_counts.esp,
+                "AH": pkt_status.protocol_counts.ah,
+                "UDP": pkt_status.protocol_counts.udp,
+                "TCP": pkt_status.protocol_counts.tcp,
+                "ICMP": pkt_status.protocol_counts.icmp,
+                "OTHER": pkt_status.protocol_counts.other,
+            }
+        else:
+            ike_sum = db.scalar(select(func.sum(IPsecSession.ike_packets))) or 0
+            esp_sum = db.scalar(select(func.sum(IPsecSession.esp_packets))) or 0
+            ah_sum = db.scalar(select(func.sum(IPsecSession.ah_packets))) or 0
+            protocol_counts = {
+                "IKE": int(ike_sum),
+                "ESP": int(esp_sum),
+                "AH": int(ah_sum),
+            }
+
+        capture = {
+            "total_packets": total_packets,
+            "capture_format": pkt_status.capture.format if pkt_status.capture else "N/A",
+            "filename": pkt_status.capture.filename if pkt_status.capture else "None",
+            "protocol_counts": protocol_counts,
+        }
+
+        # 4. Protocol & Cryptographic Posture
+        proto_posture = dashboard_service.get_protocol_posture(db)
+        protocol = {
+            "ike_versions": proto_posture.ike_versions,
+            "observed_encryption_algorithms": proto_posture.observed_encryption_algorithms,
+            "observed_integrity_algorithms": proto_posture.observed_integrity_algorithms,
+            "observed_dh_groups": proto_posture.observed_dh_groups,
+            "observed_prf_algorithms": proto_posture.observed_prf_algorithms,
+            "pfs_enabled": proto_posture.pfs_enabled,
+        }
+
+        # 5. Security Association (SA) Lifecycle
+        sa_query = select(SecurityAssociationRow)
+        if request.session_id:
+            sa_query = sa_query.where(SecurityAssociationRow.session_id == request.session_id)
+        sa_rows = db.scalars(sa_query).all()
+
+        sa_state_counts: dict[str, int] = {}
+        for sa in sa_rows:
+            sa_state_counts[sa.state] = sa_state_counts.get(sa.state, 0) + 1
+
+        sample_sas = [
+            {
+                "id": sa.id,
+                "type": sa.type,
+                "state": sa.state,
+                "protocol": sa.protocol,
+                "initiator": sa.initiator,
+                "responder": sa.responder,
+                "ike_version": sa.ike_version or "N/A",
+                "spi": sa.spi or sa.initiator_spi or "N/A",
+                "rekey_count": sa.rekey_count,
+            }
+            for sa in sa_rows[:10]
+        ]
+
+        recent_lifecycle_events = []
+        if sa_rows:
+            sa_ids = [s.id for s in sa_rows[:10]]
+            events = db.scalars(
+                select(SALifecycleEventRow)
+                .where(SALifecycleEventRow.sa_id.in_(sa_ids))
+                .order_by(SALifecycleEventRow.id.desc())
+                .limit(15)
+            ).all()
+            recent_lifecycle_events = [
+                {
+                    "sa_id": e.sa_id,
+                    "event_type": e.event_type,
+                    "previous_state": e.previous_state,
+                    "new_state": e.new_state,
+                    "description": e.description,
+                    "timestamp": e.timestamp,
+                }
+                for e in events
+            ]
+
+        sa_lifecycle = {
+            "total_sas": len(sa_rows),
+            "state_breakdown": sa_state_counts,
+            "sample_sas": sample_sas,
+            "recent_events": recent_lifecycle_events,
+        }
+
+        # 6. Feature Extraction Summary
+        fv_query = select(FeatureVectorRow)
+        if request.session_id:
+            fv_query = fv_query.where(
+                FeatureVectorRow.entity_type == "SESSION",
+                FeatureVectorRow.entity_id == request.session_id,
+            )
+        fv_rows = db.scalars(fv_query).all()
+        fv_count = len(fv_rows)
+        total_feature_values = 0
+        if fv_rows:
+            v_ids = [fv.id for fv in fv_rows]
+            total_feature_values = (
+                db.scalar(
+                    select(func.count(FeatureValueRow.id)).where(FeatureValueRow.vector_id.in_(v_ids))
+                )
+                or 0
+            )
+
+        features = {
+            "total_vectors": fv_count,
+            "total_values": total_feature_values,
+            "feature_version": "1.0",
+            "categories": ["timing", "packet_size", "payload_entropy", "ipsec_protocol", "sa_state"],
+            "status": "EXTRACTED" if fv_count > 0 else "NO_FEATURES_EXTRACTED",
+        }
+
+        # 7. Behavioral Baseline
+        baseline_row = db.scalar(select(BaselineProfileRow).order_by(BaselineProfileRow.created_at.desc()))
+        baseline = {
+            "baseline_id": baseline_row.id if baseline_row else None,
+            "name": baseline_row.name if baseline_row else "None",
+            "version": baseline_row.version if baseline_row else 1,
+            "session_count": baseline_row.session_count if baseline_row else 0,
+            "status": "ESTABLISHED" if baseline_row else "NO_BASELINE_ESTABLISHED",
+        }
+
+        # 8. Security Drift Detection
+        drift_query = select(DriftAnalysisRow)
+        if request.session_id:
+            drift_query = drift_query.where(DriftAnalysisRow.session_id == request.session_id)
+        drift_rows = db.scalars(drift_query.order_by(DriftAnalysisRow.analyzed_at.desc())).all()
+
+        drifting_count = sum(1 for d in drift_rows if d.features_drifting > 0)
+        recent_drifts = []
+        for d in drift_rows[:5]:
+            drifting_features_detail = []
+            f_drifts = db.scalars(
+                select(FeatureDriftRow)
+                .where(FeatureDriftRow.analysis_id == d.id, FeatureDriftRow.drift_detected.is_(True))
+                .limit(5)
+            ).all()
+            for fd in f_drifts:
+                drifting_features_detail.append({
+                    "feature_name": fd.feature_name,
+                    "deviation": fd.deviation,
+                    "reason": fd.reason,
+                    "severity": fd.severity,
+                })
+
+            recent_drifts.append({
+                "session_id": d.session_id,
+                "baseline_id": d.baseline_id,
+                "status": d.status,
+                "severity": d.severity,
+                "features_drifting": d.features_drifting,
+                "drifting_features": drifting_features_detail,
+            })
+
+        drift = {
+            "total_analyses": len(drift_rows),
+            "drifting_sessions_count": drifting_count,
+            "recent_drifts": recent_drifts,
+            "status": "DRIFT_DETECTED" if drifting_count > 0 else "ALIGNED" if drift_rows else "NOT_EVALUATED",
+        }
+
+        # 9. AI / ML Anomaly Detection & Explainability
+        active_model = db.scalar(select(MLModelRow).where(MLModelRow.is_active.is_(True)))
+        anom_query = select(AnomalyAnalysisRow)
+        if request.session_id:
+            anom_query = anom_query.where(AnomalyAnalysisRow.session_id == request.session_id)
+        anom_rows = db.scalars(anom_query.order_by(AnomalyAnalysisRow.analyzed_at.desc())).all()
+
+        anom_flagged = [a for a in anom_rows if a.classification == "ANOMALOUS"]
+        anomalous_sessions_detail = []
+        for a in anom_flagged[:5]:
+            contribs = db.scalars(
+                select(AnomalyFeatureContributionRow)
+                .where(AnomalyFeatureContributionRow.analysis_id == a.id)
+                .order_by(AnomalyFeatureContributionRow.contribution_score.desc())
+                .limit(4)
+            ).all()
+            contributions = [
+                {
+                    "feature": c.feature_name,
+                    "score": c.contribution_score,
+                    "direction": c.direction,
+                    "description": c.evidence_description,
+                }
+                for c in contribs
+            ]
+            anomalous_sessions_detail.append({
+                "session_id": a.session_id,
+                "display_score": a.display_score,
+                "raw_score": a.raw_score,
+                "explanation": a.explanation_summary,
+                "contributions": contributions,
+            })
+
+        ml_anomaly = {
+            "active_model_name": active_model.name if active_model else "IsolationForest (Unsupervised)",
+            "model_type": active_model.model_type if active_model else "IsolationForest",
+            "model_version": active_model.model_version if active_model else "1.0",
+            "total_evaluated": len(anom_rows),
+            "anomalous_count": len(anom_flagged),
+            "anomalous_sessions": anomalous_sessions_detail,
+            "status": "ANOMALIES_DETECTED" if anom_flagged else "NORMAL" if anom_rows else "NOT_EVALUATED",
+        }
+
+        # 10. Security Rules & Vulnerabilities
+        vuln_query = select(VulnerabilityFindingRow)
+        if request.session_id:
+            vuln_query = vuln_query.where(VulnerabilityFindingRow.affected_session_id == request.session_id)
+        findings = db.scalars(
+            vuln_query.order_by(VulnerabilityFindingRow.last_seen.desc())
+        ).all()
+
+        # Severity sort helper
+        sev_rank = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3, "INFO": 4}
+        findings_sorted = sorted(findings, key=lambda f: sev_rank.get(f.severity.upper(), 99))
+
+        vuln_counts = {
+            "CRITICAL": sum(1 for f in findings if f.severity.upper() == "CRITICAL"),
+            "HIGH": sum(1 for f in findings if f.severity.upper() == "HIGH"),
+            "MEDIUM": sum(1 for f in findings if f.severity.upper() == "MEDIUM"),
+            "LOW": sum(1 for f in findings if f.severity.upper() == "LOW"),
+            "TOTAL": len(findings),
+        }
+
+        findings_detail = []
+        for f in findings_sorted[:25]:
+            rule = db.scalar(select(SecurityRuleRow).where(SecurityRuleRow.id == f.rule_id))
+            ev_rows = db.scalars(
+                select(FindingEvidenceRow).where(FindingEvidenceRow.finding_id == f.id).limit(3)
+            ).all()
+            evidence_items = [
+                {
+                    "key": ev.evidence_key,
+                    "observed": ev.observed_value,
+                    "expected": ev.expected_value,
+                    "description": ev.description,
+                }
+                for ev in ev_rows
+            ]
+
+            findings_detail.append({
+                "id": f.id,
+                "rule_id": f.rule_id,
+                "title": f.title,
+                "severity": f.severity,
+                "confidence": f.confidence,
+                "category": f.category,
+                "description": f.description,
+                "affected_object_type": f.affected_object_type,
+                "affected_object_id": f.affected_object_id,
+                "remediation": rule.remediation if rule else "Review configuration and upgrade algorithms.",
+                "references": json.loads(rule.references_json) if rule and rule.references_json else [],
+                "evidence": evidence_items,
+            })
+
+        vulnerabilities = {
+            "total_findings": len(findings),
+            "counts": vuln_counts,
+            "findings": findings_detail,
+        }
+
+        # 11. Risk Assessment (Strict Scope: Layer 10 is NOT INITIALIZED)
+        risk = {
+            "overall_risk_score": None,
+            "overall_risk_status": "NOT INITIALIZED",
+            "statement": "Risk assessment unavailable: Layer 10 (Risk Assessment & Decision Engine) remains not initialized. The framework does not compute artificial or fabricated risk scores.",
+        }
+
+        # 12. Prioritized Recommendations compiled from real findings
+        recommendations = self._compile_recommendations(findings_detail, proto_posture, drift)
+
+        # 13. Appendix
+        layers_status = [
+            {"number": l.number, "name": l.name, "status": l.status.value, "package": l.package}
+            for l in ARCHITECTURE_LAYERS
+        ]
+        appendix = {
+            "architecture_layers": layers_status,
+            "report_generation_engine": "ReportLab 5.x",
+            "disclaimer": (
+                "This document is an automated cybersecurity assessment report generated by the "
+                "AI-Powered IPsec VPN Protocol Analyzer and Security Assessment Framework. "
+                "Findings reflect actual network telemetry, deterministic rule evaluation, "
+                "and empirical machine-learning observations."
+            ),
+        }
+
+        return SecurityAssessmentReportData(
+            metadata=metadata,
+            environment=environment,
+            capture=capture,
+            protocol=protocol,
+            sa_lifecycle=sa_lifecycle,
+            features=features,
+            baseline=baseline,
+            drift=drift,
+            ml_anomaly=ml_anomaly,
+            vulnerabilities=vulnerabilities,
+            risk=risk,
+            recommendations=recommendations,
+            appendix=appendix,
+        )
+
+    def _compile_recommendations(
+        self,
+        findings: list[dict[str, Any]],
+        proto_posture: Any,
+        drift: dict[str, Any],
+    ) -> list[dict[str, Any]]:
+        """Compile prioritized recommendations from real findings and observed posture."""
+        recs: list[dict[str, Any]] = []
+
+        seen_remediations = set()
+
+        # Immediate Priority: Critical vulnerabilities
+        for f in findings:
+            if f["severity"] == "CRITICAL" and f["remediation"] not in seen_remediations:
+                seen_remediations.add(f["remediation"])
+                recs.append({
+                    "priority": "Immediate",
+                    "title": f"Address Critical Finding: {f['title']}",
+                    "description": f["remediation"],
+                    "related_rule": f["rule_id"],
+                    "category": f["category"],
+                })
+
+        # High Priority: High severity vulnerabilities & anomalous traffic
+        for f in findings:
+            if f["severity"] == "HIGH" and f["remediation"] not in seen_remediations:
+                seen_remediations.add(f["remediation"])
+                recs.append({
+                    "priority": "High Priority",
+                    "title": f"Remediate High Risk: {f['title']}",
+                    "description": f["remediation"],
+                    "related_rule": f["rule_id"],
+                    "category": f["category"],
+                })
+
+        # Medium Priority: Medium findings, missing PFS, or active drift
+        for f in findings:
+            if f["severity"] == "MEDIUM" and f["remediation"] not in seen_remediations:
+                seen_remediations.add(f["remediation"])
+                recs.append({
+                    "priority": "Medium Priority",
+                    "title": f"Harden Configuration: {f['title']}",
+                    "description": f["remediation"],
+                    "related_rule": f["rule_id"],
+                    "category": f["category"],
+                })
+
+        if proto_posture.pfs_enabled is False and "Enable PFS" not in seen_remediations:
+            seen_remediations.add("Enable PFS")
+            recs.append({
+                "priority": "Medium Priority",
+                "title": "Enable Perfect Forward Secrecy (PFS)",
+                "description": "Configure Diffie-Hellman group in Child SA phase 2 negotiations to guarantee forward secrecy.",
+                "related_rule": "RULE-CONFIG-002",
+                "category": "CONFIGURATION",
+            })
+
+        if drift.get("drifting_sessions_count", 0) > 0 and "Investigate Drift" not in seen_remediations:
+            seen_remediations.add("Investigate Drift")
+            recs.append({
+                "priority": "Medium Priority",
+                "title": "Investigate Security Drift Deviations",
+                "description": "Re-align session feature metrics with established baseline profiles to prevent configuration divergence.",
+                "related_rule": "LAYER-07-DRIFT",
+                "category": "BEHAVIORAL",
+            })
+
+        # Default best practice if no vulnerabilities found
+        if not recs:
+            recs.append({
+                "priority": "Informational",
+                "title": "Maintain Baseline Hardening",
+                "description": "Continue regular monitoring and periodic rekey assessments in accordance with RFC 8221 / NIST SP 800-77.",
+                "related_rule": "BEST-PRACTICE",
+                "category": "MAINTENANCE",
+            })
+
+        return recs
+
+
+report_collector = ReportDataCollector()

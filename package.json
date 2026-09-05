@@ -1,0 +1,11 @@
+{
+  "name": "sih-ipsec-vpn-project",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node \"SEC 14/AI-Powered-IPsec-VPN-Protocol-Analyzer-and-Security-Assessment-Framework/scripts/runner.js\" build-and-run",
+    "dev": "node \"SEC 14/AI-Powered-IPsec-VPN-Protocol-Analyzer-and-Security-Assessment-Framework/scripts/runner.js\" dev",
+    "start": "node \"SEC 14/AI-Powered-IPsec-VPN-Protocol-Analyzer-and-Security-Assessment-Framework/scripts/runner.js\" build-and-run"
+  }
+}

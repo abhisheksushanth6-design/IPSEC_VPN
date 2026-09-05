@@ -1,0 +1,10 @@
+"""Layer 11 — Security Databases (SQLite).
+
+Status: FOUNDATION CREATED.
+
+SECTION 0 placeholder. This package intentionally contains no
+implementation; its functionality is delivered in a later section.
+"""
+
+LAYER_NUMBER = 11
+LAYER_NAME = "Security Databases (SQLite)"

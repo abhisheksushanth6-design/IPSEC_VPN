@@ -1,0 +1,41 @@
+import { Radio } from 'lucide-react';
+
+import { Panel } from '@/components/ui';
+import { EmptyState } from '@/components/states';
+import { StatusBadge } from '@/components/status';
+import { SecurityEventRow } from './SecurityEventRow';
+import type { SecurityEvent } from '@/types';
+
+interface SecurityEventStreamProps {
+  /** `null` while no event source exists; `[]` when connected but quiet. */
+  events: SecurityEvent[] | null;
+}
+
+/** Live event list. Fed by /ws/events in a later section. */
+export function SecurityEventStream({ events }: SecurityEventStreamProps) {
+  return (
+    <Panel
+      title="Live Security Event Stream"
+      description="Events published on /ws/events."
+      actions={<StatusBadge status="NOT INITIALIZED" label="NO EVENT SOURCES" size="sm" />}
+      className="flex flex-col"
+    >
+      {events === null ? (
+        <EmptyState
+          icon={Radio}
+          title="No security events"
+          description="The WebSocket channel is ready but no engine publishes to it yet. Packet, negotiation, drift, anomaly, vulnerability and risk events appear here once their layers are implemented."
+          status="NOT INITIALIZED"
+        />
+      ) : events.length === 0 ? (
+        <EmptyState icon={Radio} title="No security events" description="Connected. Waiting for events." />
+      ) : (
+        <ul className="scrollbar-slim max-h-96 overflow-y-auto">
+          {events.map((event) => (
+            <SecurityEventRow key={event.id} event={event} />
+          ))}
+        </ul>
+      )}
+    </Panel>
+  );
+}

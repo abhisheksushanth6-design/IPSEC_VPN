@@ -1,0 +1,517 @@
+{
+ "empty_status": {
+  "state": "NOT INITIALIZED",
+  "packets_available": false,
+  "capture_id": null,
+  "capture_filename": null,
+  "discovered_at": null,
+  "statistics": null,
+  "inactivity_gap_seconds": 300.0,
+  "last_error": null
+ },
+ "ready_status": {
+  "state": "READY",
+  "packets_available": true,
+  "capture_id": "775d959c6ed66e558fd7e12fcf77b46cb3d954c9399f3f93dceb23007aa9ecd3",
+  "capture_filename": "sessions.pcap",
+  "discovered_at": null,
+  "statistics": null,
+  "inactivity_gap_seconds": 300.0,
+  "last_error": null
+ },
+ "available_status": {
+  "state": "AVAILABLE",
+  "packets_available": true,
+  "capture_id": "775d959c6ed66e558fd7e12fcf77b46cb3d954c9399f3f93dceb23007aa9ecd3",
+  "capture_filename": "sessions.pcap",
+  "discovered_at": "2026-09-03T02:19:35",
+  "statistics": {
+   "total": 2,
+   "active": 2,
+   "established": 0,
+   "negotiating": 0,
+   "terminated": 0,
+   "discovered": 0,
+   "unknown": 0
+  },
+  "inactivity_gap_seconds": 300.0,
+  "last_error": null
+ },
+ "page": {
+  "items": [
+   {
+    "id": "IPSEC-6CAF4804E312",
+    "ordinal": 1,
+    "source": "192.0.2.10",
+    "destination": "198.51.100.20",
+    "direction": "BIDIRECTIONAL",
+    "state": "ACTIVE",
+    "correlation": "DIRECT",
+    "start_time": "2023-11-14T22:13:20.000000+00:00",
+    "end_time": "2023-11-14T22:13:22.000000+00:00",
+    "duration_seconds": 2.0,
+    "packet_count": 3,
+    "byte_count": 278,
+    "ike_packets": 2,
+    "esp_packets": 1,
+    "ah_packets": 0,
+    "ike_version": "2.0",
+    "nat_traversal": false
+   },
+   {
+    "id": "IPSEC-C65C36140C8F",
+    "ordinal": 2,
+    "source": "192.0.2.30",
+    "destination": "198.51.100.40",
+    "direction": "OUTBOUND",
+    "state": "ACTIVE",
+    "correlation": "DIRECT",
+    "start_time": "2023-11-14T22:13:23.000000+00:00",
+    "end_time": "2023-11-14T22:13:23.000000+00:00",
+    "duration_seconds": 0.0,
+    "packet_count": 1,
+    "byte_count": 74,
+    "ike_packets": 0,
+    "esp_packets": 1,
+    "ah_packets": 0,
+    "ike_version": null,
+    "nat_traversal": false
+   }
+  ],
+  "page": 1,
+  "page_size": 25,
+  "total": 2,
+  "total_pages": 1
+ },
+ "details": {
+  "IPSEC-6CAF4804E312": {
+   "id": "IPSEC-6CAF4804E312",
+   "ordinal": 1,
+   "source": "192.0.2.10",
+   "destination": "198.51.100.20",
+   "direction": "BIDIRECTIONAL",
+   "state": "ACTIVE",
+   "correlation": "DIRECT",
+   "start_time": "2023-11-14T22:13:20.000000+00:00",
+   "end_time": "2023-11-14T22:13:22.000000+00:00",
+   "duration_seconds": 2.0,
+   "packet_count": 3,
+   "byte_count": 278,
+   "ike_packets": 2,
+   "esp_packets": 1,
+   "ah_packets": 0,
+   "ike_version": "2.0",
+   "nat_traversal": false,
+   "ike": {
+    "version": "2.0",
+    "initiator_spis": [
+     "0101010101010101"
+    ],
+    "responder_spis": [],
+    "exchange_types": [
+     "IKE_SA_INIT",
+     "IKE_AUTH"
+    ],
+    "message_ids": [
+     0,
+     1
+    ],
+    "payload_types": [
+     "SA",
+     "KE",
+     "Nonce",
+     "SK (Encrypted)"
+    ],
+    "packet_count": 2,
+    "nat_traversal": false
+   },
+   "esp": {
+    "spis": [
+     {
+      "spi": "0xaaaa0001",
+      "direction": "192.0.2.10 \u2192 198.51.100.20",
+      "packet_count": 1,
+      "sequence_min": 1,
+      "sequence_max": 1,
+      "nat_traversal": false
+     }
+    ],
+    "packet_count": 1
+   },
+   "ah": null,
+   "timeline": [
+    {
+     "timestamp": "2023-11-14T22:13:20.000000+00:00",
+     "packet_number": 1,
+     "label": "First packet",
+     "detail": "IKEv2 IKE_SA_INIT msg=0 [SA, KE, Nonce]"
+    },
+    {
+     "timestamp": "2023-11-14T22:13:20.000000+00:00",
+     "packet_number": 1,
+     "label": "IKE detected",
+     "detail": "IKEv2 IKE_SA_INIT msg=0 [SA, KE, Nonce]"
+    },
+    {
+     "timestamp": "2023-11-14T22:13:21.000000+00:00",
+     "packet_number": 2,
+     "label": "IKE_AUTH observed",
+     "detail": "IKEv2 IKE_AUTH msg=1 [SK (Encrypted)]"
+    },
+    {
+     "timestamp": "2023-11-14T22:13:22.000000+00:00",
+     "packet_number": 3,
+     "label": "IPsec traffic",
+     "detail": "ESP SPI=0xaaaa0001 seq=1 payload=32 bytes (encrypted)"
+    },
+    {
+     "timestamp": "2023-11-14T22:13:22.000000+00:00",
+     "packet_number": 3,
+     "label": "Last packet",
+     "detail": "ESP SPI=0xaaaa0001 seq=1 payload=32 bytes (encrypted)"
+    }
+   ],
+   "activity": [
+    {
+     "timestamp": "2023-11-14T22:13:20.000+00:00",
+     "packets": 1
+    },
+    {
+     "timestamp": "2023-11-14T22:13:20.083+00:00",
+     "packets": 0
+    },
+    {
+     "timestamp": "2023-11-14T22:13:20.166+00:00",
+     "packets": 0
+    },
+    {
+     "timestamp": "2023-11-14T22:13:20.250+00:00",
+     "packets": 0
+    },
+    {
+     "timestamp": "2023-11-14T22:13:20.333+00:00",
+     "packets": 0
+    },
+    {
+     "timestamp": "2023-11-14T22:13:20.416+00:00",
+     "packets": 0
+    },
+    {
+     "timestamp": "2023-11-14T22:13:20.500+00:00",
+     "packets": 0
+    },
+    {
+     "timestamp": "2023-11-14T22:13:20.583+00:00",
+     "packets": 0
+    },
+    {
+     "timestamp": "2023-11-14T22:13:20.666+00:00",
+     "packets": 0
+    },
+    {
+     "timestamp": "2023-11-14T22:13:20.750+00:00",
+     "packets": 0
+    },
+    {
+     "timestamp": "2023-11-14T22:13:20.833+00:00",
+     "packets": 0
+    },
+    {
+     "timestamp": "2023-11-14T22:13:20.916+00:00",
+     "packets": 0
+    },
+    {
+     "timestamp": "2023-11-14T22:13:21.000+00:00",
+     "packets": 1
+    },
+    {
+     "timestamp": "2023-11-14T22:13:21.083+00:00",
+     "packets": 0
+    },
+    {
+     "timestamp": "2023-11-14T22:13:21.166+00:00",
+     "packets": 0
+    },
+    {
+     "timestamp": "2023-11-14T22:13:21.250+00:00",
+     "packets": 0
+    },
+    {
+     "timestamp": "2023-11-14T22:13:21.333+00:00",
+     "packets": 0
+    },
+    {
+     "timestamp": "2023-11-14T22:13:21.416+00:00",
+     "packets": 0
+    },
+    {
+     "timestamp": "2023-11-14T22:13:21.500+00:00",
+     "packets": 0
+    },
+    {
+     "timestamp": "2023-11-14T22:13:21.583+00:00",
+     "packets": 0
+    },
+    {
+     "timestamp": "2023-11-14T22:13:21.666+00:00",
+     "packets": 0
+    },
+    {
+     "timestamp": "2023-11-14T22:13:21.750+00:00",
+     "packets": 0
+    },
+    {
+     "timestamp": "2023-11-14T22:13:21.833+00:00",
+     "packets": 0
+    },
+    {
+     "timestamp": "2023-11-14T22:13:21.916+00:00",
+     "packets": 1
+    }
+   ],
+   "evidence": [
+    "1 ESP data packets observed: a child SA carried traffic."
+   ],
+   "packets": [
+    {
+     "id": "6542c5241cd94b87966d1e12d3b4f728",
+     "number": 1,
+     "timestamp": "2023-11-14T22:13:20.000000+00:00",
+     "source": "192.0.2.10",
+     "destination": "198.51.100.20",
+     "protocol": "IKE",
+     "length": 122,
+     "info": "IKEv2 IKE_SA_INIT msg=0 [SA, KE, Nonce]",
+     "parse_status": "OK",
+     "ipsec_type": "IKE",
+     "nat_traversal": false,
+     "spi": "0101010101010101"
+    },
+    {
+     "id": "8f1d74e2bead4d88b9f6308c75c05a25",
+     "number": 2,
+     "timestamp": "2023-11-14T22:13:21.000000+00:00",
+     "source": "198.51.100.20",
+     "destination": "192.0.2.10",
+     "protocol": "IKE",
+     "length": 82,
+     "info": "IKEv2 IKE_AUTH msg=1 [SK (Encrypted)]",
+     "parse_status": "OK",
+     "ipsec_type": "IKE",
+     "nat_traversal": false,
+     "spi": "0101010101010101"
+    },
+    {
+     "id": "2c8ce902bcc04f7ab6bcd7352e8271e4",
+     "number": 3,
+     "timestamp": "2023-11-14T22:13:22.000000+00:00",
+     "source": "192.0.2.10",
+     "destination": "198.51.100.20",
+     "protocol": "ESP",
+     "length": 74,
+     "info": "ESP SPI=0xaaaa0001 seq=1 payload=32 bytes (encrypted)",
+     "parse_status": "OK",
+     "ipsec_type": "ESP",
+     "nat_traversal": false,
+     "spi": "0xaaaa0001"
+    }
+   ],
+   "packets_total": 3,
+   "packets_available": true
+  },
+  "IPSEC-C65C36140C8F": {
+   "id": "IPSEC-C65C36140C8F",
+   "ordinal": 2,
+   "source": "192.0.2.30",
+   "destination": "198.51.100.40",
+   "direction": "OUTBOUND",
+   "state": "ACTIVE",
+   "correlation": "DIRECT",
+   "start_time": "2023-11-14T22:13:23.000000+00:00",
+   "end_time": "2023-11-14T22:13:23.000000+00:00",
+   "duration_seconds": 0.0,
+   "packet_count": 1,
+   "byte_count": 74,
+   "ike_packets": 0,
+   "esp_packets": 1,
+   "ah_packets": 0,
+   "ike_version": null,
+   "nat_traversal": false,
+   "ike": null,
+   "esp": {
+    "spis": [
+     {
+      "spi": "0x12345678",
+      "direction": "192.0.2.30 \u2192 198.51.100.40",
+      "packet_count": 1,
+      "sequence_min": 1,
+      "sequence_max": 1,
+      "nat_traversal": false
+     }
+    ],
+    "packet_count": 1
+   },
+   "ah": null,
+   "timeline": [
+    {
+     "timestamp": "2023-11-14T22:13:23.000000+00:00",
+     "packet_number": 4,
+     "label": "First packet",
+     "detail": "ESP SPI=0x12345678 seq=1 payload=32 bytes (encrypted)"
+    },
+    {
+     "timestamp": "2023-11-14T22:13:23.000000+00:00",
+     "packet_number": 4,
+     "label": "IPsec traffic",
+     "detail": "ESP SPI=0x12345678 seq=1 payload=32 bytes (encrypted)"
+    }
+   ],
+   "activity": [
+    {
+     "timestamp": "2023-11-14T22:13:23.000+00:00",
+     "packets": 1
+    },
+    {
+     "timestamp": "2023-11-14T22:13:23.000+00:00",
+     "packets": 0
+    },
+    {
+     "timestamp": "2023-11-14T22:13:23.000+00:00",
+     "packets": 0
+    },
+    {
+     "timestamp": "2023-11-14T22:13:23.000+00:00",
+     "packets": 0
+    },
+    {
+     "timestamp": "2023-11-14T22:13:23.000+00:00",
+     "packets": 0
+    },
+    {
+     "timestamp": "2023-11-14T22:13:23.000+00:00",
+     "packets": 0
+    },
+    {
+     "timestamp": "2023-11-14T22:13:23.000+00:00",
+     "packets": 0
+    },
+    {
+     "timestamp": "2023-11-14T22:13:23.000+00:00",
+     "packets": 0
+    },
+    {
+     "timestamp": "2023-11-14T22:13:23.000+00:00",
+     "packets": 0
+    },
+    {
+     "timestamp": "2023-11-14T22:13:23.000+00:00",
+     "packets": 0
+    },
+    {
+     "timestamp": "2023-11-14T22:13:23.000+00:00",
+     "packets": 0
+    },
+    {
+     "timestamp": "2023-11-14T22:13:23.000+00:00",
+     "packets": 0
+    },
+    {
+     "timestamp": "2023-11-14T22:13:23.000+00:00",
+     "packets": 0
+    },
+    {
+     "timestamp": "2023-11-14T22:13:23.000+00:00",
+     "packets": 0
+    },
+    {
+     "timestamp": "2023-11-14T22:13:23.000+00:00",
+     "packets": 0
+    },
+    {
+     "timestamp": "2023-11-14T22:13:23.000+00:00",
+     "packets": 0
+    },
+    {
+     "timestamp": "2023-11-14T22:13:23.000+00:00",
+     "packets": 0
+    },
+    {
+     "timestamp": "2023-11-14T22:13:23.000+00:00",
+     "packets": 0
+    },
+    {
+     "timestamp": "2023-11-14T22:13:23.000+00:00",
+     "packets": 0
+    },
+    {
+     "timestamp": "2023-11-14T22:13:23.000+00:00",
+     "packets": 0
+    },
+    {
+     "timestamp": "2023-11-14T22:13:23.000+00:00",
+     "packets": 0
+    },
+    {
+     "timestamp": "2023-11-14T22:13:23.000+00:00",
+     "packets": 0
+    },
+    {
+     "timestamp": "2023-11-14T22:13:23.000+00:00",
+     "packets": 0
+    },
+    {
+     "timestamp": "2023-11-14T22:13:23.000+00:00",
+     "packets": 0
+    }
+   ],
+   "evidence": [
+    "1 ESP data packets observed: a child SA carried traffic."
+   ],
+   "packets": [
+    {
+     "id": "a40375883c86416aa5c024ace2090d1e",
+     "number": 4,
+     "timestamp": "2023-11-14T22:13:23.000000+00:00",
+     "source": "192.0.2.30",
+     "destination": "198.51.100.40",
+     "protocol": "ESP",
+     "length": 74,
+     "info": "ESP SPI=0x12345678 seq=1 payload=32 bytes (encrypted)",
+     "parse_status": "OK",
+     "ipsec_type": "ESP",
+     "nat_traversal": false,
+     "spi": "0x12345678"
+    }
+   ],
+   "packets_total": 1,
+   "packets_available": true
+  }
+ },
+ "packet_links": {
+  "6542c5241cd94b87966d1e12d3b4f728": {
+   "packet_id": "6542c5241cd94b87966d1e12d3b4f728",
+   "session_id": "IPSEC-6CAF4804E312",
+   "role": "IKE"
+  },
+  "8f1d74e2bead4d88b9f6308c75c05a25": {
+   "packet_id": "8f1d74e2bead4d88b9f6308c75c05a25",
+   "session_id": "IPSEC-6CAF4804E312",
+   "role": "IKE"
+  },
+  "2c8ce902bcc04f7ab6bcd7352e8271e4": {
+   "packet_id": "2c8ce902bcc04f7ab6bcd7352e8271e4",
+   "session_id": "IPSEC-6CAF4804E312",
+   "role": "ESP"
+  },
+  "a40375883c86416aa5c024ace2090d1e": {
+   "packet_id": "a40375883c86416aa5c024ace2090d1e",
+   "session_id": "IPSEC-C65C36140C8F",
+   "role": "ESP"
+  },
+  "67f8241d01a748888cf54a2377782f08": {
+   "packet_id": "67f8241d01a748888cf54a2377782f08",
+   "session_id": null,
+   "role": null
+  }
+ }
+}
