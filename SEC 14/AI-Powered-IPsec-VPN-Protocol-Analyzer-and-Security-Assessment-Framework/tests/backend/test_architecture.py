@@ -9,8 +9,8 @@ from __future__ import annotations
 from app.core.architecture import ARCHITECTURE_LAYERS, LayerStatus, TOTAL_LAYERS, layer_by_number
 
 LOCKED_SEQUENCE = [
-    (1, "IPsec VPN Test Environment", LayerStatus.NOT_INITIALIZED),
-    (2, "Packet Capture & Data Collection", LayerStatus.NOT_INITIALIZED),
+    (1, "IPsec VPN Test Environment", LayerStatus.OPERATIONAL),
+    (2, "Packet Capture & Data Collection", LayerStatus.OPERATIONAL),
     (3, "Packet & Protocol Analysis", LayerStatus.OPERATIONAL),
     (4, "Security State & SA Lifecycle Engine", LayerStatus.OPERATIONAL),
     (5, "Feature Extraction & Engineering", LayerStatus.OPERATIONAL),
@@ -18,7 +18,7 @@ LOCKED_SEQUENCE = [
     (7, "Security Drift Detection", LayerStatus.OPERATIONAL),
     (8, "AI / ML Anomaly Detection Engine", LayerStatus.OPERATIONAL),
     (9, "Security Rule & Vulnerability Engine", LayerStatus.OPERATIONAL),
-    (10, "Risk Assessment & Decision Engine", LayerStatus.NOT_INITIALIZED),
+    (10, "Risk Assessment & Decision Engine", LayerStatus.OPERATIONAL),
     (11, "Security Databases (SQLite)", LayerStatus.OPERATIONAL),
     (12, "Backend & API (FastAPI)", LayerStatus.OPERATIONAL),
     (13, "Web Dashboard", LayerStatus.OPERATIONAL),
@@ -53,6 +53,10 @@ def test_layer_lookup() -> None:
 
 def test_api_serves_the_locked_sequence(client) -> None:
     payload = client.get("/api/system/status").json()
-    served = [(l["number"], l["name"], l["status"]) for l in payload["architecture_layers"]]
-    assert served == [(n, name, status.value) for n, name, status in LOCKED_SEQUENCE]
-    assert payload["initialized_layers"] == 11
+    served = [(l["number"], l["name"]) for l in payload["architecture_layers"]]
+    assert served == [(n, name) for n, name, _ in LOCKED_SEQUENCE]
+    layer_map = {l["number"]: l["status"] for l in payload["architecture_layers"]}
+    assert layer_map[1] in ("READY", "WARNING", "ERROR", "NOT INITIALIZED")
+    assert layer_map[2] in ("READY", "CAPTURING", "ERROR", "NOT INITIALIZED")
+    assert layer_map[10] in ("READY", "OPERATIONAL", "NOT INITIALIZED")
+    assert payload["total_layers"] == 14

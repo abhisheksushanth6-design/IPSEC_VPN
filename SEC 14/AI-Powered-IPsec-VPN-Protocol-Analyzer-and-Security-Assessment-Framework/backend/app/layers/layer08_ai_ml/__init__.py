@@ -2,9 +2,9 @@
 
 Status: OPERATIONAL.
 
-Identifies behavioral patterns that differ significantly from learned/reference
-VPN behavior using unsupervised Isolation Forest models with factual explainable
-evidence and 3-signal comparison.
+Identifies behavioral patterns using a locally trained CIC-IDS2017 XGBoost model
+(and optional Isolation Forest baselines) with factual explainable evidence.
+No cloud LLM is used.
 """
 
 from app.layers.layer08_ai_ml.service import AIAnomalyService

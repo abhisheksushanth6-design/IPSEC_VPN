@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class MLModelConfiguration(BaseModel):
@@ -37,22 +37,29 @@ class MLModelConfiguration(BaseModel):
 
 
 class MLModelDiagnostics(BaseModel):
-    """Genuine, mathematically calculated unsupervised model diagnostics (no fake accuracy)."""
+    """Genuine model diagnostics. Isolation Forest score stats and/or CIC-IDS holdout metrics."""
 
-    sample_count: int
-    feature_count: int
-    contamination: float
-    score_min: float
-    score_max: float
-    score_mean: float
-    score_std: float
-    score_p25: float
-    score_p50: float
-    score_p75: float
+    model_config = ConfigDict(extra="ignore")
+
+    sample_count: int = 0
+    feature_count: int = 0
+    contamination: float = 0.0
+    score_min: float = 0.0
+    score_max: float = 0.0
+    score_mean: float = 0.0
+    score_std: float = 0.0
+    score_p25: float = 0.0
+    score_p50: float = 0.0
+    score_p75: float = 0.0
     score_threshold: float = Field(
         default=0.0,
         description="Decision threshold where raw score < threshold indicates anomaly.",
     )
+    accuracy: Optional[float] = None
+    f1: Optional[float] = None
+    precision: Optional[float] = None
+    recall: Optional[float] = None
+    evaluation_strategy: Optional[str] = None
 
 
 class MLModelTrainRequest(BaseModel):

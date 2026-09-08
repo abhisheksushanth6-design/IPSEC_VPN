@@ -38,18 +38,40 @@ def build_system_status(session: Session) -> SystemStatusResponse:
     settings = get_settings()
     application_mode, database_status = read_application_mode(session)
 
-    layers = [
-        ArchitectureLayerSchema(
-            number=layer.number,
-            name=layer.name,
-            package=layer.package,
-            status=layer.status.value,
-            description=layer.description,
+    layers = []
+    for layer in ARCHITECTURE_LAYERS:
+        status_val = layer.status.value
+        if layer.number == 1:
+            try:
+                from app.layers.layer01_test_environment.service import get_environment_service
+                status_val = get_environment_service().get_layer_status()
+            except Exception:
+                status_val = LayerStatus.NOT_INITIALIZED.value
+        elif layer.number == 2:
+            try:
+                from app.layers.layer02_packet_capture.service import get_live_capture_service
+                status_val = get_live_capture_service().get_layer_status()
+            except Exception:
+                status_val = LayerStatus.NOT_INITIALIZED.value
+        elif layer.number == 10:
+            try:
+                from app.layers.layer10_risk_engine.service import get_risk_engine_service
+                status_val = get_risk_engine_service().get_layer_status(session)
+            except Exception:
+                status_val = LayerStatus.NOT_INITIALIZED.value
+
+        layers.append(
+            ArchitectureLayerSchema(
+                number=layer.number,
+                name=layer.name,
+                package=layer.package,
+                status=status_val,
+                description=layer.description,
+            )
         )
-        for layer in ARCHITECTURE_LAYERS
-    ]
+
     initialized = sum(
-        1 for layer in ARCHITECTURE_LAYERS if layer.status is not LayerStatus.NOT_INITIALIZED
+        1 for l in layers if l.status != LayerStatus.NOT_INITIALIZED.value
     )
 
     return SystemStatusResponse(

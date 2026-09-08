@@ -29,7 +29,7 @@ def create_schema() -> None:
 
 
 def seed_system_settings(session: Session) -> SystemSetting:
-    """Ensure the application_mode setting exists, and return it."""
+    """Ensure the application_mode setting exists and matches configuration."""
     settings = get_settings()
     existing = session.scalar(
         select(SystemSetting).where(SystemSetting.key == APPLICATION_MODE_KEY)
@@ -44,6 +44,11 @@ def seed_system_settings(session: Session) -> SystemSetting:
         session.commit()
         session.refresh(existing)
         logger.info("Seeded system_settings.%s = %s", APPLICATION_MODE_KEY, existing.value)
+    elif existing.value != settings.application_mode:
+        existing.value = settings.application_mode
+        session.commit()
+        session.refresh(existing)
+        logger.info("Synchronized system_settings.%s = %s", APPLICATION_MODE_KEY, existing.value)
     return existing
 
 
@@ -53,6 +58,11 @@ def initialize_database() -> None:
         create_schema()
         with SessionLocal() as session:
             seed_system_settings(session)
+            try:
+                from app.layers.layer08_ai_ml.cicids_bundle import ensure_cicids_model_registered
+                ensure_cicids_model_registered(session)
+            except Exception as exc:
+                logger.warning("CIC-IDS model bootstrap deferred: %s", exc)
     except SQLAlchemyError as exc:  # pragma: no cover - exercised on real failures
         logger.error("Database initialisation failed: %s", exc)
         raise DatabaseInitializationError(str(exc)) from exc

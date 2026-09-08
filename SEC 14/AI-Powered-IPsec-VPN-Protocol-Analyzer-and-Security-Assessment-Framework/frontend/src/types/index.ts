@@ -80,4 +80,5 @@ export type * from './baseline';
 export type * from './drift';
 export type * from './mlAnomaly';
 export type * from './vulnerability';
+export type * from './risk';
 export type * from './reports';

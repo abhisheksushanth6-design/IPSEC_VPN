@@ -15,8 +15,18 @@ def test_project_name_is_exact() -> None:
 
 
 def test_database_url_falls_back_to_sqlite() -> None:
-    settings = Settings(database_url="", application_mode="DEMO")
+    settings = Settings(database_url="", application_mode="STANDALONE")
     assert settings.resolved_database_url.startswith("sqlite:///")
+
+
+def test_default_application_mode_is_standalone() -> None:
+    settings = Settings(application_mode="")
+    assert settings.application_mode == "STANDALONE"
+
+
+def test_explicit_demo_opt_in_allowed() -> None:
+    settings = Settings(application_mode="DEMO")
+    assert settings.application_mode == "DEMO"
 
 
 def test_cors_origins_are_parsed() -> None:

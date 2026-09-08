@@ -138,6 +138,55 @@ export function ModelDetails({ model, onClose, onActivate, onViewDataset }: Mode
             )}
           </div>
 
+          {/* CIC-IDS2017 Benchmark Evaluation Metrics (Holdout Test Set — Not Live IPsec Accuracy) */}
+          {diag && (diag.accuracy !== undefined || diag.f1 !== undefined) && (
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-cyan-400">
+                  CIC-IDS2017 Benchmark Evaluation Metrics
+                </h4>
+                <span className="text-3xs text-muted font-mono">
+                  Supervised Holdout Test (ISCX CSVs)
+                </span>
+              </div>
+              <div className="rounded border border-cyan-500/30 bg-cyan-950/10 p-4">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 font-mono text-2xs">
+                  <div>
+                    <span className="text-muted block">Evaluation Accuracy:</span>
+                    <strong className="text-cyan-300 text-xs">
+                      {diag.accuracy !== undefined ? `${(diag.accuracy * 100).toFixed(2)}%` : 'N/A'}
+                    </strong>
+                  </div>
+                  <div>
+                    <span className="text-muted block">F1 Score:</span>
+                    <strong className="text-emerald-400 text-xs">
+                      {diag.f1 !== undefined ? `${(diag.f1 * 100).toFixed(2)}%` : 'N/A'}
+                    </strong>
+                  </div>
+                  <div>
+                    <span className="text-muted block">Precision:</span>
+                    <strong className="text-purple-400 text-xs">
+                      {diag.precision !== undefined ? `${(diag.precision * 100).toFixed(2)}%` : 'N/A'}
+                    </strong>
+                  </div>
+                  <div>
+                    <span className="text-muted block">Recall:</span>
+                    <strong className="text-amber-400 text-xs">
+                      {diag.recall !== undefined ? `${(diag.recall * 100).toFixed(2)}%` : 'N/A'}
+                    </strong>
+                  </div>
+                </div>
+                <div className="mt-3 pt-2.5 border-t border-cyan-500/20 text-2xs text-text-secondary font-sans leading-relaxed">
+                  <strong>Evaluation Strategy:</strong> {diag.evaluation_strategy || 'Stratified 80/20 holdout split across all CIC-IDS2017 days'}.
+                  <br />
+                  <span className="text-muted">
+                    Notice: These figures measure offline supervised classification performance on the reference CIC-IDS2017 dataset. They are strictly labeled as CIC-IDS2017 evaluation metrics and do not represent live IPsec traffic detection accuracy.
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Hyperparameter Configuration */}
           <div>
             <h4 className="text-xs font-bold uppercase tracking-wider text-text-secondary mb-2">

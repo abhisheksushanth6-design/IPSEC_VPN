@@ -83,7 +83,7 @@ export function LayerSummaryCards({ summary }: LayerSummaryCardsProps) {
             <strong className="font-mono text-primary">
               {typeof mlStatus?.active_model_name === 'string'
                 ? mlStatus.active_model_name
-                : 'IsolationForest'}
+                : (typeof mlStatus?.active_model_id === 'string' ? mlStatus.active_model_id : 'No active model')}
             </strong>
           </p>
         </div>

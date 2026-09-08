@@ -6,6 +6,8 @@ import { SkeletonCard } from '@/components/states';
 import { useSystemState } from '@/context/SystemStateContext';
 import type { StatusKind } from '@/types';
 
+import { useSystemReadouts } from '@/components/layout/SystemStatusCluster';
+
 interface StatusLine {
   label: string;
   status: StatusKind;
@@ -14,11 +16,12 @@ interface StatusLine {
 }
 
 /**
- * Live operational state. Backend, database and mode come from the API; the
- * remaining lines describe engines that do not yet exist.
+ * Live operational state. Backend, database, mode, capture readiness,
+ * and AI/ML model status are dynamically derived from real backend APIs.
  */
 export function SystemStatusPanel() {
   const { state, reachable, status, refresh } = useSystemState();
+  const readouts = useSystemReadouts();
 
   const lines: StatusLine[] = [
     {
@@ -31,23 +34,34 @@ export function SystemStatusPanel() {
       label: 'Database',
       status: reachable ? 'ONLINE' : 'NOT INITIALIZED',
       displayValue: reachable ? 'FOUNDATION READY' : 'UNKNOWN',
-      note: status ? `Reported ${status.database_status}` : undefined,
+      note: status ? `Reported ${status.database_status ?? (status as any).databaseStatus}` : undefined,
     },
     {
       label: 'Application mode',
-      status: status?.application_mode === 'LIVE' ? 'LIVE' : 'DEMO',
-      displayValue: status?.application_mode ?? 'UNKNOWN',
+      status: ((status?.application_mode ?? (status as any)?.applicationMode) === 'LIVE' ||
+      (status?.application_mode ?? (status as any)?.applicationMode) === 'PRODUCTION'
+        ? 'LIVE'
+        : (status?.application_mode ?? (status as any)?.applicationMode) === 'STANDALONE'
+        ? 'STANDALONE'
+        : (status?.application_mode ?? (status as any)?.applicationMode) === 'DEMO'
+        ? 'DEMO'
+        : 'ONLINE') as StatusKind,
+      displayValue: (status?.application_mode ?? (status as any)?.applicationMode) ?? 'UNKNOWN',
       note: 'From backend configuration',
     },
     {
       label: 'Capture engine',
-      status: 'NOT INITIALIZED',
-      note: 'Layer 02 not implemented',
+      status: readouts.captureStatus,
+      displayValue: readouts.captureStatusLabel,
+      note: 'Layer 03 PCAP/PCAPNG upload ready',
     },
     {
       label: 'AI model',
-      status: 'NOT INITIALIZED',
-      note: 'Layer 08 not implemented',
+      status: readouts.aiModelStatus,
+      displayValue: readouts.aiModelStatusLabel,
+      note: readouts.activeModel
+        ? `${readouts.activeModel.id} (${readouts.activeModel.model_type}) · ${readouts.activeModel.status}`
+        : 'Layer 08 not initialized',
     },
     {
       label: 'WebSocket',

@@ -20,5 +20,6 @@ export { baselineService } from './baselineService';
 export { driftService } from './driftService';
 export { aiAnomalyService } from './aiAnomalyService';
 export { vulnerabilityService } from './vulnerabilityService';
+export { riskService } from './riskService';
 export { dashboardService } from './dashboardService';
 export { reportService } from './reportService';

@@ -588,3 +588,80 @@ def test_api_ml_endpoints():
     r = client.get("/api/ml/datasets")
     assert r.status_code == 200
     assert len(r.json()) == 1
+
+
+def test_cicids_model_bundle_registration_and_activation(client):
+    """Test CIC-IDS2017 XGBoost model registration, sole active status, and inference."""
+    pytest.importorskip("xgboost")
+    from app.layers.layer08_ai_ml.cicids_bundle import (
+        cicids_artifacts_present,
+        ensure_cicids_model_registered,
+        load_cicids_bundle,
+    )
+    from datetime import datetime, timezone
+    from app.layers.layer08_ai_ml.cicids_features import CICIDS_MODEL_ID
+
+    assert cicids_artifacts_present() is True
+
+    bundle = load_cicids_bundle()
+    assert bundle["backend"] == "cicids-xgboost"
+    assert bundle["xgb"] is not None
+    assert bundle["scaler"] is not None
+    assert len(bundle["feature_columns"]) == 30
+
+    db = SessionLocal()
+    try:
+        # Populate sessions
+        _populate_session_with_vector(db, "S-CIC-01", packet_count=100, byte_count=50000)
+        _populate_session_with_vector(db, "S-CIC-02", packet_count=200, byte_count=100000)
+        _populate_session_with_vector(db, "S-CIC-03", packet_count=150, byte_count=75000)
+
+        # First train an Isolation Forest model so an existing active model is present
+        service = AIAnomalyService(db)
+        _create_sample_baseline(db, "BASE-CIC", ["S-CIC-01", "S-CIC-02", "S-CIC-03"])
+
+        req = MLModelTrainRequest(baseline_id="BASE-CIC", name="Fallback Isolation Forest")
+        iso_model = service.train_model(req)
+        assert iso_model.is_active is True
+
+        # Now register CIC-IDS XGBoost model with force_active=True
+        cic_model = ensure_cicids_model_registered(db, force_active=True)
+        assert cic_model is not None
+        assert cic_model.id == CICIDS_MODEL_ID
+        assert cic_model.is_active is True
+
+        # Verify exactly ONE model is active
+        all_models = db.query(MLModelRow).all()
+        assert len(all_models) == 2
+        active_models = [m for m in all_models if m.is_active]
+        assert len(active_models) == 1
+        assert active_models[0].id == CICIDS_MODEL_ID
+
+        # Verify the Isolation Forest model is retained as INACTIVE fallback
+        inactive_models = [m for m in all_models if not m.is_active]
+        assert len(inactive_models) == 1
+        assert inactive_models[0].id == iso_model.id
+
+        # Test API /api/ml/status
+        status_res = client.get("/api/ml/status").json()
+        assert status_res["active_model"]["id"] == CICIDS_MODEL_ID
+        assert status_res["active_model"]["model_type"] == "XGBoost"
+        assert status_res["total_models"] == 2
+
+        # Test API /api/ml/models
+        models_res = client.get("/api/ml/models").json()
+        assert len(models_res) == 2
+        xgb_m = next(m for m in models_res if m["id"] == CICIDS_MODEL_ID)
+        assert xgb_m["is_active"] is True
+        iso_m = next(m for m in models_res if m["id"] == iso_model.id)
+        assert iso_m["is_active"] is False
+
+        # Test inference via POST /api/ml/analyze without specifying model_id
+        # Must automatically resolve and use model_cicids_xgb_local
+        anom_res = client.post("/api/ml/analyze", json={"session_id": "S-CIC-01"}).json()
+        assert anom_res["model_id"] == CICIDS_MODEL_ID
+        assert anom_res["classification"] in ("NORMAL", "ANOMALOUS")
+        assert len(anom_res["feature_contributions"]) == 30
+        assert "CIC-IDS" in anom_res["explanation_summary"]
+    finally:
+        db.close()

@@ -41,6 +41,7 @@ const VALID_STATUSES: readonly ArchitectureStatus[] = [
   'IN DEVELOPMENT',
   'OPERATIONAL',
   'IMPLEMENTED',
+  'READY',
 ];
 
 /**
@@ -54,6 +55,7 @@ export const LAYER_PRESENTATION: Record<number, ArchitectureLayerPresentation> =
     purpose: 'Generate, test and validate IPsec VPN behaviour in a controlled environment.',
     futureInputs: ['Tunnel configuration', 'Test scenarios'],
     futureOutputs: ['Live IPsec traffic', 'Tunnel state'],
+    route: '/environment',
   },
   2: {
     icon: Activity,

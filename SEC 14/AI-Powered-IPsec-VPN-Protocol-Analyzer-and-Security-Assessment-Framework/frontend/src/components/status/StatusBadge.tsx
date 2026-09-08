@@ -27,8 +27,11 @@ interface StatusDescriptor {
  */
 const STATUS_MAP: Record<StatusKind, StatusDescriptor> = {
   ONLINE: { tone: 'success', icon: ShieldCheck },
+  READY: { tone: 'success', icon: CircleCheck },
+  ERROR: { tone: 'danger', icon: OctagonAlert },
   'FOUNDATION ONLINE': { tone: 'success', icon: ShieldCheck },
   LIVE: { tone: 'success', icon: Radio },
+  STANDALONE: { tone: 'success', icon: ShieldCheck },
   ACTIVE: { tone: 'success', icon: Radio },
   DEMO: { tone: 'info', icon: CircleDashed },
   INITIALIZING: { tone: 'info', icon: Loader2 },

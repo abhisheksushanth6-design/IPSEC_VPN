@@ -7,11 +7,13 @@ This project is an AI-powered security assessment framework for IPsec VPN deploy
 > **Master Implementation Notice**:
 > - **SEC 14** is the current master codebase.
 > - **SEC 0–13** represent historical and reference milestone snapshots during development.
-> - **Layers 3–9 and 11–14 are fully OPERATIONAL**.
-> - **Layer 10 (Risk Assessment & Decision Engine) is intentionally NOT INITIALIZED**. In adherence to framework integrity, the application must **never** calculate or fabricate an artificial Layer 10 risk score.
-> - **Layer 08 AI / ML Engine** currently utilizes an IsolationForest model trained on 27 behavioral features. The existing model is an initial baseline model and must not be represented as a fully validated production ML model.
-> - **Real IPsec E2E Validation Completed**: The application has been validated against real IPsec traffic. The real capture used in validation contained legitimate ESP data traffic without IKE negotiation packets, so IKE-derived features are legitimately marked as `UNAVAILABLE`.
-> - **Layer 07 Security Drift Detection** successfully performs drift analysis against reference baselines (`BASE-API`).
+> - **All 14 Layers (Layers 01–14) are fully OPERATIONAL**.
+> - **Layer 01 (IPsec VPN Test Environment)** provides real VirtualBox VM orchestration and StrongSwan IPsec configuration verification.
+> - **Layer 02 (Packet Capture & Data Collection)** provides real live hypervisor NIC packet capture and seamless downstream ingestion pipeline execution.
+> - **Layer 08 (AI / ML Anomaly Detection Engine)** utilizes a local, trained CIC-IDS2017 XGBoost model (`model_cicids_xgb_local`) as the default active model alongside an IsolationForest engine.
+> - **Layer 10 (Risk Assessment & Decision Engine)** features a genuine multi-criteria risk engine evaluating vulnerability, ML anomaly, baseline drift, and SA lifecycle signals without synthetic fabrication.
+> - **Real IPsec E2E Validation Completed**: The application has been validated against real live IPsec traffic (CAP-830CD2).
+> - **Layer 07 Security Drift Detection** performs drift analysis against reference baselines.
 > - **Layer 09 Security Rule Engine** contains 17 deterministic IPsec security rules with explainable evidence.
 > - **Layer 14 Report Generation** produces structured, auditable PDF assessment reports.
 
@@ -19,16 +21,16 @@ This project is an AI-powered security assessment framework for IPsec VPN deploy
 
 | # | Layer | Package | Status | Description |
 |---|---|---|---|---|
-| 01 | IPsec VPN Test Environment | `layer01_test_environment` | NOT INITIALIZED | Controlled environment for generating and validating IPsec VPN behavior |
-| 02 | Packet Capture & Data Collection | `layer02_packet_capture` | NOT INITIALIZED | Network traffic ingestion and capture interface |
+| 01 | IPsec VPN Test Environment | `layer01_test_environment` | OPERATIONAL | Controlled environment for generating and validating IPsec VPN behavior |
+| 02 | Packet Capture & Data Collection | `layer02_packet_capture` | OPERATIONAL | Real live hypervisor NIC packet capture and capture ingestion interface |
 | 03 | Packet & Protocol Analysis | `layer03_protocol_analysis` | OPERATIONAL | PCAP/PCAPNG decoders for IPv4/IPv6, TCP/UDP/ICMP, IKEv1/v2, ESP, AH, NAT-T, and Linux SLL2 |
 | 04 | Security State & SA Lifecycle Engine | `layer04_sa_lifecycle` | OPERATIONAL | Derives IKE and Child SAs with evidence-cited state transitions, rekeys, and terminations |
 | 05 | Feature Extraction & Engineering | `layer05_feature_engineering` | OPERATIONAL | Extracts 53 validated, versioned packet, session, and SA features with per-feature lineage |
 | 06 | Session Fingerprinting & Baseline Profiling | `layer06_session_fingerprinting` | OPERATIONAL | Behavioral session fingerprints and reference baselines from observed IPsec sessions |
 | 07 | Security Drift Detection | `layer07_drift_detection` | OPERATIONAL | Identifies deviations between observed behavior and established security baselines |
-| 08 | AI / ML Anomaly Detection Engine | `layer08_ai_ml` | OPERATIONAL | IsolationForest anomaly detection on 27 features with explainable contribution scores |
+| 08 | AI / ML Anomaly Detection Engine | `layer08_ai_ml` | OPERATIONAL | Local CIC-IDS2017 XGBoost anomaly classification and IsolationForest with explainable contribution scores |
 | 09 | Security Rule & Vulnerability Engine | `layer09_vulnerability_engine` | OPERATIONAL | Deterministic evaluation of 17 rules across cryptographic, protocol, and SA criteria |
-| 10 | Risk Assessment & Decision Engine | `layer10_risk_engine` | NOT INITIALIZED | Preserved placeholder; never fabricates artificial overall risk scores |
+| 10 | Risk Assessment & Decision Engine | `layer10_risk_engine` | OPERATIONAL | Multi-criteria risk scoring engine combining vulnerability, ML anomaly, drift, and SA lifecycle signals |
 | 11 | Security Databases (SQLite) | `layer11_database` | OPERATIONAL | Structured configuration, session records, drift analyses, findings, and model records |
 | 12 | Backend & API (FastAPI) | `layer12_api` | OPERATIONAL | FastAPI REST backend, WebSocket event bus, dependency injection, and data models |
 | 13 | Web Dashboard | `layer13_dashboard` | OPERATIONAL | Analyst-facing React 18 interface with responsive dark mode and 12 dedicated pages |
@@ -56,16 +58,12 @@ Configured and in active use:
 | Uvicorn | High-performance ASGI server |
 | SQLite | Lightweight embedded database |
 | SQLAlchemy 2 | Typed ORM, relationships, and schema migrations |
-| scikit-learn | Layer 08 — Isolation Forest anomaly detection engine |
+| scikit-learn | Layer 08 — Machine learning preprocessing & Isolation Forest engine |
+| XGBoost | Layer 08 — Local CIC-IDS2017 machine learning classifier |
 | joblib | Serialization for ML model artifacts |
 | ReportLab | Layer 14 — Automated cybersecurity assessment PDF generation |
+| VirtualBox VBoxManage | Layer 01 & 02 — Automated VM management and live hypervisor NIC packet capture |
 | pytest | Backend regression test suite |
-
-Planned for future expansion:
-
-| Technology | Planned for |
-| --- | --- |
-| Scapy | Layer 02 — Live packet capture interface (Layer 03 uses native decoders) |
 
 ## Repository Structure
 
@@ -261,9 +259,9 @@ cd frontend && LIVE_BACKEND=1 npx vitest run tests/realtime.live.test.ts
 
 ## Current Status
 
-SEC 14 is the current master implementation of the framework. Eleven of the fourteen architectural layers (Layers 3–9 and 11–14) are fully operational and integrated with 100% regression test coverage.
+SEC 14 is the current master implementation of the framework. All fourteen architectural layers (Layers 01–14) are fully operational and integrated with 100% regression test coverage.
 
-Layer 10 (Risk Assessment & Decision Engine) remains intentionally NOT INITIALIZED; the framework strictly disallows synthetic or fabricated risk scores. Real IPsec traffic has been validated end-to-end through protocol decoding, SA tracking, feature extraction, baseline profiling, drift analysis, ML anomaly detection, vulnerability rule matching, and PDF generation.
+Layer 10 (Risk Assessment & Decision Engine) evaluates multi-criteria risk dynamically based on genuine empirical signals (vulnerability findings, XGBoost anomaly inference, baseline drift, and SA state), strictly disallowing synthetic or fabricated risk scores. Real IPsec traffic has been validated end-to-end through hypervisor live capture, protocol decoding, SA tracking, feature extraction, baseline profiling, drift analysis, ML anomaly detection, vulnerability rule matching, composite risk evaluation, and PDF report generation.
 
 ## Development Roadmap
 

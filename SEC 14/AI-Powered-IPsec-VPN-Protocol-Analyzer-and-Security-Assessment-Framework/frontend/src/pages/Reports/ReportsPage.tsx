@@ -174,14 +174,12 @@ export function ReportsPage() {
         <Shield className="h-5 w-5 text-indigo-400 shrink-0 mt-0.5" />
         <div className="space-y-1">
           <p className="font-medium text-primary">
-            Evidence-Based Audit Traceability (Layers 01–13)
+            Evidence-Based Audit Traceability (Layers 01–14)
           </p>
           <p>
             Generated PDF reports compile empirical protocol state, cryptographic Security Associations,
-            behavioral baselines, deterministic drift detections, unsupervised ML anomalies, and security rule
-            evaluations. Layer 10 (Risk Assessment &amp; Decision Engine) remains{' '}
-            <span className="font-semibold text-amber-400">NOT INITIALIZED</span>; reports display{' '}
-            <code className="text-secondary bg-surface px-1 py-0.5 rounded">Risk assessment unavailable</code> with zero synthetic scores.
+            behavioral baselines, deterministic drift detections, unsupervised ML anomalies, security rule
+            evaluations, and composite Layer 10 risk assessments with zero synthetic scores.
           </p>
         </div>
       </div>

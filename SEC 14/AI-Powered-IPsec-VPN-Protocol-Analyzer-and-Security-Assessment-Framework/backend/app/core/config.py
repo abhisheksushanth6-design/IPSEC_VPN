@@ -41,14 +41,26 @@ class Settings(BaseSettings):
     api_host: str = Field(default="127.0.0.1")
     api_port: int = Field(default=8000)
     cors_origins: str = Field(default="http://localhost:5173")
-    application_mode: str = Field(default="DEMO")
+    application_mode: str = Field(default="STANDALONE")
     log_level: str = Field(default="INFO")
+
+    # Layer 01 — IPsec VPN Test Environment
+    vboxmanage_path: str = Field(default=r"C:\Program Files\Oracle\VirtualBox\VBoxManage.exe")
+    client_vm_name: str = Field(default="IPsec-Client")
+    server_vm_name: str = Field(default="IPsec-Server")
+    analyzer_vm_name: str = Field(default="Name: IPsec-Analyzer")
+    host_only_adapter_name: str = Field(default="VirtualBox Host-Only Ethernet Adapter")
+    client_static_ip: str = Field(default="192.168.56.104")
+    server_static_ip: str = Field(default="192.168.56.20")
+    guest_ssh_user: str = Field(default="")
+    guest_ssh_key_path: str = Field(default="")
+    guest_ssh_password: str = Field(default="")
 
     @field_validator("application_mode")
     @classmethod
     def _normalise_mode(cls, value: str) -> str:
-        mode = (value or "DEMO").strip().upper()
-        allowed = {"DEMO", "DEVELOPMENT", "PRODUCTION"}
+        mode = (value or "STANDALONE").strip().upper()
+        allowed = {"STANDALONE", "PRODUCTION", "DEVELOPMENT", "DEMO"}
         if mode not in allowed:
             raise ValueError(
                 f"APPLICATION_MODE must be one of {sorted(allowed)}, got {value!r}"

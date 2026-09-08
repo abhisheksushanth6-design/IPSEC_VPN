@@ -403,23 +403,49 @@ class PDFReportRenderer:
         story.append(kpi_table)
         story.append(Spacer(1, 10))
 
-        # Strict Scope Callout: Layer 10 Risk Assessment
-        risk_box = [
-            [
-                Paragraph(
-                    "<b>RISK ASSESSMENT ENGINE (LAYER 10) STATUS: NOT INITIALIZED</b><br/>"
-                    "Risk assessment is strictly unavailable. Layer 10 (Risk Assessment &amp; Decision Engine) "
-                    "remains not initialized in the architecture sequence. In adherence to framework integrity, "
-                    "the reporting engine NEVER calculates or fabricates artificial overall risk scores.",
-                    self.styles["BodyDark"],
-                )
+        # Layer 10 Risk Assessment
+        risk_info = data.risk
+        has_score = risk_info.get("overall_risk_score") is not None
+        if has_score:
+            score_val = risk_info["overall_risk_score"]
+            level = risk_info.get("risk_level", "UNKNOWN")
+            decision = risk_info.get("decision", "ALLOW")
+            quality = risk_info.get("data_quality", "PARTIAL")
+            stmt = risk_info.get("statement", "")
+            
+            bg_color = "#FEF2F2" if level in ("CRITICAL", "HIGH") else "#F0FDF4" if level == "LOW" else "#FEFCE8"
+            border_color = "#EF4444" if level in ("CRITICAL", "HIGH") else "#22C55E" if level == "LOW" else "#EAB308"
+
+            risk_box = [
+                [
+                    Paragraph(
+                        f"<b>RISK ASSESSMENT &amp; DECISION ENGINE (LAYER 10) — POSTURE: {decision}</b><br/>"
+                        f"<b>Risk Score:</b> {score_val} / 100 ({level}) &nbsp;|&nbsp; "
+                        f"<b>Policy Decision:</b> {decision} &nbsp;|&nbsp; "
+                        f"<b>Telemetry Quality:</b> {quality}<br/>"
+                        f"{stmt}",
+                        self.styles["BodyDark"],
+                    )
+                ]
             ]
-        ]
+        else:
+            bg_color = "#FEF3C7"
+            border_color = "#F59E0B"
+            risk_box = [
+                [
+                    Paragraph(
+                        "<b>RISK ASSESSMENT ENGINE (LAYER 10) STATUS: OPERATIONAL (IDLE)</b><br/>"
+                        "Layer 10 (Risk Assessment &amp; Decision Engine) is operational. "
+                        "No session risk assessments have been committed yet for this scope.",
+                        self.styles["BodyDark"],
+                    )
+                ]
+            ]
         risk_table = Table(risk_box, colWidths=[530])
         risk_table.setStyle(
             TableStyle([
-                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#FEF3C7")),
-                ("BOX", (0, 0), (-1, -1), 1, colors.HexColor("#F59E0B")),
+                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor(bg_color)),
+                ("BOX", (0, 0), (-1, -1), 1, colors.HexColor(border_color)),
                 ("TOPPADDING", (0, 0), (-1, -1), 8),
                 ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
                 ("LEFTPADDING", (0, 0), (-1, -1), 10),

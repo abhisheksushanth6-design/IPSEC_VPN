@@ -98,7 +98,18 @@ export type RealtimeConnectionState =
   | 'RECONNECTING'
   | 'ERROR';
 
-export type CaptureState = 'NOT INITIALIZED' | 'READY' | 'CAPTURING' | 'PAUSED' | 'STOPPED' | 'ERROR';
+export type CaptureState =
+  | 'IDLE'
+  | 'STARTING'
+  | 'CAPTURING'
+  | 'STOPPING'
+  | 'INGESTING'
+  | 'COMPLETED'
+  | 'READY'
+  | 'NOT INITIALIZED'
+  | 'PAUSED'
+  | 'STOPPED'
+  | 'ERROR';
 
 export interface NetworkInterface {
   name: string;

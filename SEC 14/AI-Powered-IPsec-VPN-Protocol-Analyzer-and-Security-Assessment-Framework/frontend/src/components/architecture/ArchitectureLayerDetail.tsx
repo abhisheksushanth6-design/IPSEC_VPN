@@ -108,7 +108,7 @@ export function ArchitectureLayerDetail({ layer, onClose }: ArchitectureLayerDet
           <p className="text-sm text-secondary">{currentStateText(layer.status)}</p>
         </Section>
 
-        <Section title="Future inputs">
+        <Section title="Layer inputs">
           <ul className="space-y-1 text-sm text-secondary">
             {layer.futureInputs.map((item) => (
               <li key={item} className="flex gap-2">
@@ -119,7 +119,7 @@ export function ArchitectureLayerDetail({ layer, onClose }: ArchitectureLayerDet
           </ul>
         </Section>
 
-        <Section title="Future outputs">
+        <Section title="Layer outputs">
           <ul className="space-y-1 text-sm text-secondary">
             {layer.futureOutputs.map((item) => (
               <li key={item} className="flex gap-2">

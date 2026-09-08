@@ -66,13 +66,13 @@ class FeatureExtractionService:
 
     # ----- extraction ------------------------------------------------------
 
-    def extract(self, entity_type: str, entity_id: str) -> FeatureVectorSchema:
+    def extract(self, entity_type: str, entity_id: str, capture_id: Optional[str] = None) -> FeatureVectorSchema:
         """Extract and store features for one entity."""
-        capture_id = self._require_capture()
+        cid = capture_id or self._require_capture()
         with self._lock:
             self._processing = True
         try:
-            vector = self._build(entity_type, entity_id, capture_id)
+            vector = self._build(entity_type, entity_id, cid)
         except FeatureExtractionError as exc:
             self._last_error = exc.message
             raise PacketServiceError(exc.code, exc.message, 422) from exc

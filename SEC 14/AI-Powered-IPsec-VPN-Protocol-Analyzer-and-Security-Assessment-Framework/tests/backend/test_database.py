@@ -15,14 +15,14 @@ def test_initialize_database_creates_system_settings() -> None:
     assert database_is_ready() is True
 
 
-def test_application_mode_seeded_as_demo() -> None:
+def test_application_mode_seeded_as_standalone() -> None:
     initialize_database()
     with SessionLocal() as session:
         setting = session.scalar(
             select(SystemSetting).where(SystemSetting.key == APPLICATION_MODE_KEY)
         )
     assert setting is not None
-    assert setting.value == "DEMO"
+    assert setting.value == "STANDALONE"
 
 
 def test_initialization_is_idempotent() -> None:
@@ -60,5 +60,6 @@ def test_only_expected_tables_exist() -> None:
         "security_rules",
         "vulnerability_findings",
         "finding_evidence",
+        "risk_assessments",
         "reports",
     }

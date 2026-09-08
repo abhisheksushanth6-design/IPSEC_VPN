@@ -56,7 +56,14 @@ export async function requestJson<T>(path: string, signal?: AbortSignal): Promis
   return (await response.json()) as T;
 }
 
-/** Build the URL for the future real-time event channel. */
+/** Build the URL for the real-time event channel. */
 export function eventStreamUrl(): string {
-  return `${appConfig.wsBaseUrl}${appConfig.eventsPath}`;
+  if (appConfig.wsBaseUrl) {
+    return `${appConfig.wsBaseUrl}${appConfig.eventsPath}`;
+  }
+  if (typeof window !== 'undefined' && window.location) {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${protocol}//${window.location.host}${appConfig.eventsPath}`;
+  }
+  return `ws://127.0.0.1:8000${appConfig.eventsPath}`;
 }

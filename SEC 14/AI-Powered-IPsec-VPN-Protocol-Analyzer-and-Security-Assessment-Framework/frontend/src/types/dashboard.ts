@@ -149,6 +149,14 @@ export interface SystemPosture {
   layers_total: number;
   layers_initialized: number;
   last_refresh: string;
+  // Interoperability aliases
+  backendStatus?: string;
+  databaseStatus?: string;
+  applicationMode?: string;
+  total_layers?: number;
+  totalLayers?: number;
+  initialized_layers?: number;
+  initializedLayers?: number;
 }
 
 export interface SessionActivityItem {

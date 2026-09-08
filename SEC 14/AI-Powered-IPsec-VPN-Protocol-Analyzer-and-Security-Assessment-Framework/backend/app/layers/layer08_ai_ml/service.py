@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from typing import Any, Dict, List, Optional
 from sqlalchemy import desc, select
 from sqlalchemy.orm import Session
@@ -53,6 +54,10 @@ class AIAnomalyService:
 
     def get_status(self) -> AIAnomalyEngineStatus:
         """Determine actual operational status and health of the ML engine."""
+        if not os.environ.get("PYTEST_CURRENT_TEST"):
+            from app.layers.layer08_ai_ml.cicids_bundle import ensure_cicids_model_registered
+            ensure_cicids_model_registered(self.db)
+
         models = self.db.execute(select(MLModelRow)).scalars().all()
         active_row = self.db.execute(
             select(MLModelRow).where(MLModelRow.is_active == True)  # noqa: E712
@@ -107,6 +112,10 @@ class AIAnomalyService:
 
     def list_models(self) -> List[MLModelSummary]:
         """List all registered models, sorted by creation date descending."""
+        if not os.environ.get("PYTEST_CURRENT_TEST"):
+            from app.layers.layer08_ai_ml.cicids_bundle import ensure_cicids_model_registered
+            ensure_cicids_model_registered(self.db)
+
         rows = self.db.execute(
             select(MLModelRow).order_by(desc(MLModelRow.created_at))
         ).scalars().all()

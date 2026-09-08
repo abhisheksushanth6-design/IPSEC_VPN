@@ -19,7 +19,7 @@ export interface ArchitectureLayer {
 }
 
 /** Operating mode reported by the backend. */
-export type ApplicationMode = 'DEMO' | 'DEVELOPMENT' | 'PRODUCTION' | 'LIVE';
+export type ApplicationMode = 'DEMO' | 'DEVELOPMENT' | 'PRODUCTION' | 'LIVE' | 'STANDALONE';
 
 export interface SystemStatus {
   project: string;
@@ -29,6 +29,12 @@ export interface SystemStatus {
   architecture_layers: ArchitectureLayer[];
   total_layers: number;
   initialized_layers: number;
+  // camelCase interoperability aliases
+  backendStatus?: string;
+  databaseStatus?: string;
+  applicationMode?: string;
+  totalLayers?: number;
+  initializedLayers?: number;
 }
 
 /**

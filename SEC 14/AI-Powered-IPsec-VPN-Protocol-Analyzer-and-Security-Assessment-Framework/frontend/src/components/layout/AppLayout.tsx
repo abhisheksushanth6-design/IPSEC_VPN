@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 
 import { Sidebar } from '@/components/navigation';
+import { PageLoadingState } from '@/components/states';
 import { useIsCompactViewport } from '@/hooks';
 import { findNavigationItem } from '@/config/navigation';
 import { PROJECT_NAME } from '@/config/branding';
@@ -53,12 +54,13 @@ export function AppLayout() {
 
         <div className="flex min-w-0 flex-1 flex-col">
           <MainContent>
-            <Outlet />
+            <Suspense fallback={<PageLoadingState message="Loading module..." />}>
+              <Outlet />
+            </Suspense>
           </MainContent>
 
           <footer className="border-t border-border px-4 py-3 text-2xs text-muted sm:px-6 lg:px-8">
-            Section 1 — global website shell. Security analysis modules are not
-            implemented and no security data is collected.
+            {PROJECT_NAME} · 14-Layer Security Assessment Framework
           </footer>
         </div>
       </div>

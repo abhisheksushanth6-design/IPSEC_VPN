@@ -14,9 +14,15 @@ import math
 import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
+import numpy as np
 from sqlalchemy import desc, select
 from sqlalchemy.orm import Session
 
+from app.layers.layer08_ai_ml.cicids_features import (
+    CIC_FEATURES,
+    CICIDS_MODEL_TYPE,
+    session_features_to_cic_vector,
+)
 from app.layers.layer08_ai_ml.explainability import AnomalyExplanationService
 from app.layers.layer08_ai_ml.preprocessing import (
     FEATURE_NAMES,
@@ -120,10 +126,15 @@ class AnomalyInferenceService:
         if not vector:
             raise MissingFeatureVectorError(request.session_id)
 
-        # 5. Validate feature schema compatibility
-        validate_feature_version_compatibility(
-            model_row.feature_version, vector.feature_version
+        # 5. Validate feature schema compatibility (session Isolation Forest only)
+        is_cicids = (
+            model_row.model_type == CICIDS_MODEL_TYPE
+            or metadata.get("backend") == "cicids-xgboost"
         )
+        if not is_cicids:
+            validate_feature_version_compatibility(
+                model_row.feature_version, vector.feature_version
+            )
 
         # 6. Extract raw feature dictionary from FeatureValueRow
         val_rows = self.db.execute(
@@ -142,55 +153,91 @@ class AnomalyInferenceService:
                 elif vrow.data_type == "CATEGORICAL":
                     feat_dict[vrow.name] = vrow.value_text
 
-        # 7. Reconstruct PreprocessingPipeline from model metadata
-        pipeline_dict = metadata.get("preprocessing_pipeline")
-        if pipeline_dict:
-            pipeline = PreprocessingPipeline.from_dict(pipeline_dict)
-        else:
-            pipeline = PreprocessingPipeline(feature_names=FEATURE_NAMES)
-
-        # 8. Transform features
-        scaled_vector, imputed_raw = pipeline.transform_single(feat_dict)
-
-        # 9. Execute Isolation Forest inference
-        raw_score = float(model_object.decision_function(scaled_vector)[0])
-        prediction = int(model_object.predict(scaled_vector)[0])  # -1 = outlier, +1 = inlier
-
-        display_score = compute_normalized_display_score(raw_score)
-
-        # 10. Load baseline statistics if model is linked to a baseline
-        baseline_stats: Dict[str, Dict[str, Any]] = {}
-        if model_row.baseline_id:
-            b_features = self.db.execute(
-                select(BaselineFeatureRow).where(
-                    BaselineFeatureRow.baseline_id == model_row.baseline_id
+        if is_cicids:
+            raw_cic = session_features_to_cic_vector(feat_dict)
+            feature_max = metadata.get("feature_max")
+            if feature_max is not None:
+                raw_cic = np.minimum(raw_cic, np.asarray(feature_max, dtype=np.float64))
+            scaler = metadata.get("scaler")
+            if scaler is None:
+                from fastapi import HTTPException, status
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="CIC-IDS model is missing its scaler artifact.",
                 )
-            ).scalars().all()
-            for bf in b_features:
-                baseline_stats[bf.name] = {
-                    "mean": bf.mean,
-                    "std_dev": bf.std_dev,
-                    "median": bf.median,
-                }
-
-        # 11. Generate explainable feature evidence
-        contributions, explanation_summary, anom_feat_count = (
-            AnomalyExplanationService.explain_session(
-                observed_features=imputed_raw,
-                pipeline=pipeline,
-                baseline_stats=baseline_stats,
+            scaled_cic = scaler.transform(raw_cic.reshape(1, -1))
+            if hasattr(model_object, "predict_proba"):
+                attack_probability = float(model_object.predict_proba(scaled_cic)[0, 1])
+            else:
+                attack_probability = float(model_object.predict(scaled_cic)[0])
+            importances = getattr(model_object, "feature_importances_", None)
+            contributions, explanation_summary, anom_feat_count = (
+                AnomalyExplanationService.explain_cicids_vector(
+                    feature_names=metadata.get("feature_columns") or CIC_FEATURES,
+                    raw_values=raw_cic,
+                    scaled_values=scaled_cic[0],
+                    importances=importances,
+                    attack_probability=attack_probability,
+                )
             )
-        )
+            raw_score = attack_probability
+            display_score = round(attack_probability * 100.0, 2)
+            is_anomalous = attack_probability >= 0.5
+            classification = "ANOMALOUS" if is_anomalous else "NORMAL"
+            features_analyzed = len(metadata.get("feature_columns") or CIC_FEATURES)
+            pipeline_feature_count = features_analyzed
+        else:
+            # 7. Reconstruct PreprocessingPipeline from model metadata
+            pipeline_dict = metadata.get("preprocessing_pipeline")
+            if pipeline_dict:
+                pipeline = PreprocessingPipeline.from_dict(pipeline_dict)
+            else:
+                pipeline = PreprocessingPipeline(feature_names=FEATURE_NAMES)
 
-        # Classification strictly defined: NORMAL vs ANOMALOUS
-        # Flags as anomalous if IsolationForest prediction is outlier (-1),
-        # display score >= 50.0, or at least 3 significant feature deviations (>1.5σ)
-        is_anomalous = (prediction == -1 or display_score >= 50.0 or anom_feat_count >= 3)
-        classification = "ANOMALOUS" if is_anomalous else "NORMAL"
+            # 8. Transform features
+            scaled_vector, imputed_raw = pipeline.transform_single(feat_dict)
 
-        if is_anomalous and display_score < 50.0:
-            # Calibrate display score to reflect the multi-feature deviation
-            display_score = round(max(display_score, 50.0 + min(45.0, anom_feat_count * 5.0)), 2)
+            # 9. Execute Isolation Forest inference
+            raw_score = float(model_object.decision_function(scaled_vector)[0])
+            prediction = int(model_object.predict(scaled_vector)[0])  # -1 = outlier, +1 = inlier
+
+            display_score = compute_normalized_display_score(raw_score)
+
+            # 10. Load baseline statistics if model is linked to a baseline
+            baseline_stats: Dict[str, Dict[str, Any]] = {}
+            if model_row.baseline_id:
+                b_features = self.db.execute(
+                    select(BaselineFeatureRow).where(
+                        BaselineFeatureRow.baseline_id == model_row.baseline_id
+                    )
+                ).scalars().all()
+                for bf in b_features:
+                    baseline_stats[bf.name] = {
+                        "mean": bf.mean,
+                        "std_dev": bf.std_dev,
+                        "median": bf.median,
+                    }
+
+            # 11. Generate explainable feature evidence
+            contributions, explanation_summary, anom_feat_count = (
+                AnomalyExplanationService.explain_session(
+                    observed_features=imputed_raw,
+                    pipeline=pipeline,
+                    baseline_stats=baseline_stats,
+                )
+            )
+
+            # Classification strictly defined: NORMAL vs ANOMALOUS
+            # Flags as anomalous if IsolationForest prediction is outlier (-1),
+            # display score >= 50.0, or at least 3 significant feature deviations (>1.5σ)
+            is_anomalous = (prediction == -1 or display_score >= 50.0 or anom_feat_count >= 3)
+            classification = "ANOMALOUS" if is_anomalous else "NORMAL"
+
+            if is_anomalous and display_score < 50.0:
+                # Calibrate display score to reflect the multi-feature deviation
+                display_score = round(max(display_score, 50.0 + min(45.0, anom_feat_count * 5.0)), 2)
+            features_analyzed = len(pipeline.feature_names)
+            pipeline_feature_count = features_analyzed
 
         # 12. Query Section 9 Baseline and Section 10 Drift status for 3-Signal Comparison
         # Check baseline membership
@@ -238,7 +285,7 @@ class AnomalyInferenceService:
             classification=classification,
             raw_score=round(raw_score, 4),
             display_score=display_score,
-            features_analyzed=len(pipeline.feature_names),
+            features_analyzed=features_analyzed,
             features_anomalous=anom_feat_count,
             explanation_summary=explanation_summary,
             baseline_id=model_row.baseline_id,
@@ -285,7 +332,7 @@ class AnomalyInferenceService:
             classification=classification,
             raw_score=round(raw_score, 4),
             display_score=display_score,
-            features_analyzed=len(pipeline.feature_names),
+            features_analyzed=features_analyzed,
             features_anomalous=anom_feat_count,
             explanation_summary=explanation_summary,
             feature_contributions=contributions,

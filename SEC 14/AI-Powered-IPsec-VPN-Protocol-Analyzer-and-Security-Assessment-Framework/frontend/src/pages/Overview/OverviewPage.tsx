@@ -29,7 +29,7 @@ import { useDashboardData } from '@/hooks';
  * reports each security metric as unavailable until its engine exists.
  */
 export function OverviewPage() {
-  const { state, reachable, errorMessage, refresh } = useSystemState();
+  const { state, reachable, status, errorMessage, refresh } = useSystemState();
   const data = useDashboardData();
 
   return (
@@ -53,7 +53,7 @@ export function OverviewPage() {
         <ErrorState message={errorMessage ?? undefined} onRetry={refresh} />
       ) : null}
 
-      <ExecutivePostureBanner posture={data.summary?.posture ?? null} />
+      <ExecutivePostureBanner posture={data.summary?.posture ?? null} status={status} />
 
       <section aria-labelledby="kpi-heading">
         <h2 id="kpi-heading" className="sr-only">

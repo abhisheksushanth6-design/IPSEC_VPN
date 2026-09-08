@@ -2,6 +2,7 @@ export { AIAnomaliesPage } from './AIAnomalies';
 export { ArchitecturePage } from './Architecture';
 export { BaselineProfilesPage } from './BaselineProfiles';
 export { DriftDetectionPage } from './DriftDetection';
+export { EnvironmentPage } from './Environment/EnvironmentPage';
 export { FeatureEngineeringPage } from './FeatureEngineering';
 export { IPSecSessionsPage } from './IPSecSessions';
 export { LiveMonitorPage } from './LiveMonitor';

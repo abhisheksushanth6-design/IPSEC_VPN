@@ -38,7 +38,7 @@ ARCHITECTURE_LAYERS: tuple[ArchitectureLayer, ...] = (
         number=1,
         name="IPsec VPN Test Environment",
         package="layer01_test_environment",
-        status=LayerStatus.NOT_INITIALIZED,
+        status=LayerStatus.OPERATIONAL,
         description=(
             "Provides a controlled environment for generating, testing, and validating IPsec VPN behavior."
         ),
@@ -47,7 +47,7 @@ ARCHITECTURE_LAYERS: tuple[ArchitectureLayer, ...] = (
         number=2,
         name="Packet Capture & Data Collection",
         package="layer02_packet_capture",
-        status=LayerStatus.NOT_INITIALIZED,
+        status=LayerStatus.OPERATIONAL,
         description=(
             "Collects network traffic and IPsec-related packets for downstream analysis."
         ),
@@ -124,7 +124,7 @@ ARCHITECTURE_LAYERS: tuple[ArchitectureLayer, ...] = (
         number=10,
         name="Risk Assessment & Decision Engine",
         package="layer10_risk_engine",
-        status=LayerStatus.NOT_INITIALIZED,
+        status=LayerStatus.OPERATIONAL,
         description=(
             "Combines security findings into an overall risk assessment and decision context."
         ),

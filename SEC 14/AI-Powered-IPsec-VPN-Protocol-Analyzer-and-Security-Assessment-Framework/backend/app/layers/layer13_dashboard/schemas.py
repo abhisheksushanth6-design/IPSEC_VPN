@@ -68,7 +68,7 @@ class SystemPosture(BaseModel):
 
     backend_status: str = Field("OPERATIONAL", description="FastAPI status.")
     database_status: str = Field("CONNECTED", description="SQLite connectivity status.")
-    application_mode: str = Field("DEMO", description="Configured operating mode.")
+    application_mode: str = Field("STANDALONE", description="Configured operating mode.")
     layers_total: int = Field(14, description="Total architecture layers.")
     layers_initialized: int = Field(11, description="Initialized architecture layers.")
     last_refresh: str = Field(..., description="ISO 8601 timestamp of summary.")
