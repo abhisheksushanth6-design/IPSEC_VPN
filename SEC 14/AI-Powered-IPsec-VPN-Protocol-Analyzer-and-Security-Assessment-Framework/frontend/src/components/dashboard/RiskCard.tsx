@@ -2,7 +2,8 @@ import { Panel, DataRow } from '@/components/ui';
 import { StatusBadge } from '@/components/status';
 import { RISK_BANDS } from '@/config/risk';
 import { RiskGauge } from './RiskGauge';
-import type { RiskSummary } from '@/types';
+import { useSystemState } from '@/context/SystemStateContext';
+import type { RiskSummary, StatusKind } from '@/types';
 
 interface RiskCardProps {
   risk: RiskSummary;
@@ -10,6 +11,13 @@ interface RiskCardProps {
 
 /** The overall risk panel: gauge, details, and the fixed band legend. */
 export function RiskCard({ risk }: RiskCardProps) {
+  const { status } = useSystemState();
+  const layer10 = status?.architecture_layers?.find((l) => l.number === 10);
+  const isLayer10Ready = layer10
+    ? layer10.status === 'OPERATIONAL' || layer10.status === 'READY' || layer10.status === 'IMPLEMENTED'
+    : false;
+
+  const fallbackStatus: StatusKind = isLayer10Ready ? 'READY' : 'NOT INITIALIZED';
   const hasScore = risk.score !== null;
 
   return (
@@ -21,8 +29,8 @@ export function RiskCard({ risk }: RiskCardProps) {
       <div className="grid gap-6 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] sm:items-center">
         <RiskGauge
           riskScore={risk.score ?? undefined}
-          riskLabel={risk.classification ?? undefined}
-          status="NOT INITIALIZED"
+          riskLabel={risk.classification ?? (isLayer10Ready && !hasScore ? 'AWAITING EVALUATION' : undefined)}
+          status={fallbackStatus}
         />
 
         <dl>
@@ -35,7 +43,11 @@ export function RiskCard({ risk }: RiskCardProps) {
             {risk.classification ? (
               <span className="font-medium">{risk.classification}</span>
             ) : (
-              <StatusBadge status="NOT INITIALIZED" size="sm" />
+              <StatusBadge
+                status={fallbackStatus}
+                label={isLayer10Ready ? 'AWAITING EVALUATION' : 'NOT INITIALIZED'}
+                size="sm"
+              />
             )}
           </DataRow>
           <DataRow label="Last updated">

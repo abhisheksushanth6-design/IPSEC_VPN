@@ -3,6 +3,7 @@ export type StatusKind =
   | 'ONLINE'
   | 'OFFLINE'
   | 'LIVE'
+  | 'STANDALONE'
   | 'DEMO'
   | 'INITIALIZING'
   | 'NOT INITIALIZED'
@@ -10,6 +11,8 @@ export type StatusKind =
   | 'INACTIVE'
   | 'WARNING'
   | 'CRITICAL'
+  | 'READY'
+  | 'ERROR'
   | 'FOUNDATION ONLINE'
   | 'BACKEND OFFLINE'
   | 'FOUNDATION CREATED'
@@ -29,7 +32,8 @@ export type ModuleStatus =
   | 'FOUNDATION READY'
   | 'IN DEVELOPMENT'
   | 'OPERATIONAL'
-  | 'IMPLEMENTED';
+  | 'IMPLEMENTED'
+  | 'READY';
 
 /** Result of the request lifecycle for any backend-backed view. */
 export type RequestState = 'loading' | 'ready' | 'error';

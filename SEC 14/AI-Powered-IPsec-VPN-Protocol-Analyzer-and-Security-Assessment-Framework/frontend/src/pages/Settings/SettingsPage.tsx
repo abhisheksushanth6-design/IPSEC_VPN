@@ -5,6 +5,7 @@ import { DataRow, PageHeader, Panel } from '@/components/ui';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 import { StatusBadge } from '@/components/status';
 import { useSystemState } from '@/context/SystemStateContext';
+import type { StatusKind } from '@/types';
 
 /**
  * Settings currently displays the configuration the backend actually reports.
@@ -34,7 +35,15 @@ export function SettingsPage() {
             <dl>
               <DataRow label="Application mode">
                 <StatusBadge
-                  status={status.application_mode === 'LIVE' ? 'LIVE' : 'DEMO'}
+                  status={
+                    (status.application_mode === 'LIVE' || status.application_mode === 'PRODUCTION'
+                      ? 'LIVE'
+                      : status.application_mode === 'STANDALONE'
+                      ? 'STANDALONE'
+                      : status.application_mode === 'DEMO'
+                      ? 'DEMO'
+                      : 'ONLINE') as StatusKind
+                  }
                   label={status.application_mode}
                   size="sm"
                 />

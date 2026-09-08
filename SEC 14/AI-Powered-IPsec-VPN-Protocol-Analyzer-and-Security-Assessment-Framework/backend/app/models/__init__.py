@@ -21,6 +21,7 @@ from app.models.ml_anomaly import (
 )
 from app.models.security_association import SALifecycleEventRow, SAPacketLink, SecurityAssociationRow
 from app.models.report import ReportRow
+from app.models.risk import RiskAssessmentRow
 from app.models.system_settings import SystemSetting
 from app.models.vulnerability import (
     FindingEvidenceRow,
@@ -51,4 +52,5 @@ __all__ = [
     "VulnerabilityFindingRow",
     "FindingEvidenceRow",
     "ReportRow",
+    "RiskAssessmentRow",
 ]

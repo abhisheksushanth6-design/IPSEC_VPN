@@ -11,6 +11,7 @@ import {
   LayoutDashboard,
   Layers,
   Network,
+  Server,
   Settings,
   ShieldAlert,
 } from 'lucide-react';
@@ -35,6 +36,12 @@ export const NAVIGATION: NavigationGroup[] = [
         path: '/architecture',
         icon: Layers,
         description: 'The 14-layer processing pipeline and its implementation status.',
+      },
+      {
+        label: 'Test Environment',
+        path: '/environment',
+        icon: Server,
+        description: 'Layer 01 VirtualBox test environment management and verification.',
       },
     ],
   },

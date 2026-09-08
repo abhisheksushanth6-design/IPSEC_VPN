@@ -51,6 +51,11 @@ if (mode === 'build' || mode === 'build-and-run') {
     process.exit(buildResult.status || 1);
   }
 
+  if (mode === 'build') {
+    console.log('\n>>> Frontend production build complete.\n');
+    process.exit(0);
+  }
+
   console.log('\n>>> [2/2] Launching Full-Stack Application on FastAPI...');
   console.log('>>> Both Backend API and Frontend UI are served simultaneously at:');
   console.log('>>>   --> http://127.0.0.1:8000\n');

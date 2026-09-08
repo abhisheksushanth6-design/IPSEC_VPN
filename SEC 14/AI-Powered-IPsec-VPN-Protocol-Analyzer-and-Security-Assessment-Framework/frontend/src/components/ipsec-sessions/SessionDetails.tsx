@@ -8,9 +8,10 @@ import { EmptyState, LoadingState } from '@/components/states';
 import { cn } from '@/utils/cn';
 import { SessionSALinks } from './SessionSALinks';
 import { AHInformation, ESPInformation, IKEInformation, SessionActivity, SessionGraph, SessionOverview, SessionPacketList, SessionProtocolSummary, SessionTimeline } from './SessionDetailSections';
+import { SessionRiskTab } from './SessionRiskTab';
 import type { SessionController } from '@/hooks';
 
-type Tab = 'overview' | 'timeline' | 'packets' | 'ipsec';
+type Tab = 'overview' | 'timeline' | 'packets' | 'ipsec' | 'risk';
 
 export function SessionDetails({ controller }: { controller: SessionController }) {
   const { detail, detailLoading, selectedId, select } = controller;
@@ -20,7 +21,13 @@ export function SessionDetails({ controller }: { controller: SessionController }
 
   useEffect(() => { if (detail) closeRef.current?.focus(); }, [detail?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const tabs: Array<[Tab, string]> = [['overview', 'Overview'], ['timeline', 'Timeline'], ['packets', 'Packets'], ['ipsec', 'IPsec / IKE']];
+  const tabs: Array<[Tab, string]> = [
+    ['overview', 'Overview'],
+    ['timeline', 'Timeline'],
+    ['packets', 'Packets'],
+    ['ipsec', 'IPsec / IKE'],
+    ['risk', 'Risk Assessment'],
+  ];
 
   return (
     <aside role={detail ? 'dialog' : 'region'} aria-label="Session details" className="flex min-w-0 flex-col rounded border border-border bg-surface xl:sticky xl:top-[calc(var(--header-height)+1.5rem)] xl:max-h-[calc(100vh-var(--header-height)-3rem)]">
@@ -43,6 +50,7 @@ export function SessionDetails({ controller }: { controller: SessionController }
             {tab === 'timeline' ? <><SessionTimeline session={detail} /><SessionActivity session={detail} /></> : null}
             {tab === 'packets' ? <SessionPacketList session={detail} onSelectPacket={(id) => navigate(`/packet-analysis?packet=${encodeURIComponent(id)}`)} /> : null}
             {tab === 'ipsec' ? <><IKEInformation session={detail} /><ESPInformation session={detail} /><AHInformation session={detail} /><SessionSALinks sessionId={detail.id} /></> : null}
+            {tab === 'risk' ? <SessionRiskTab sessionId={detail.id} /> : null}
           </div>
         </>
       )}

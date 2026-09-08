@@ -20,7 +20,7 @@ yarn-error.log*
 __pycache__/
 *.py[cod]
 *.egg-info/
-.venv/
+.venv*
 venv/
 env/
 .pytest_cache/
@@ -34,24 +34,32 @@ htmlcov/
 *.db
 *.sqlite
 *.sqlite3
-backend/data/*
-!backend/data/models/
-!backend/data/models/*.joblib
+backend/data/*.db
+backend/data/*.sqlite
 
 # ---- Packet captures (never commit) ----
 *.pcap
 *.pcapng
 *.cap
 captures/
+backend/data/captures/
 
 # ---- Generated reports ----
-backend/app/data/reports/*.pdf
+*.pdf
+backend/data/reports/
+
+# ---- Models & Datasets (preserve CIC-IDS bundle, ignore temp test models) ----
+backend/data/models/model_isoforest_*.joblib
+!backend/data/cicids/
+!backend/data/cicids/*
+!backend/data/models/model_cicids_*.joblib
 
 # ---- Logs / temp ----
 logs/
 *.log
 tmp/
 *.tmp
+scratch_*.py
 
 # ---- Editors / OS ----
 .vscode/

@@ -19,6 +19,7 @@ import type {
   EventSeverity,
   ProtocolDistribution,
   ProtocolName,
+  RiskClassification,
   SAActivity,
   SAChartState,
   SecurityEvent,
@@ -39,22 +40,19 @@ export interface UseDashboardResult extends DashboardData {
  * Layer 10 Risk Assessment remains strictly NOT INITIALIZED.
  */
 export function useDashboardData(): UseDashboardResult {
-  const { reachable } = useSystemState();
+  const { reachable, status } = useSystemState();
   const [summary, setSummary] = useState<DashboardSummaryResponse | null>(null);
   const [loading, setLoading] = useState(false);
 
   const fetchSummary = useCallback(async () => {
-    if (!reachable) {
-      setSummary(null);
-      return;
-    }
     try {
       setLoading(true);
       const res = await dashboardService.getSummary();
       setSummary(res);
     } catch {
-      // Keep null on failure; UI handles empty/offline states cleanly
-      setSummary(null);
+      if (!reachable) {
+        setSummary(null);
+      }
     } finally {
       setLoading(false);
     }
@@ -65,96 +63,167 @@ export function useDashboardData(): UseDashboardResult {
   }, [fetchSummary]);
 
   return useMemo<UseDashboardResult>(() => {
+    const isLayerActive = (num: number) => {
+      const l = status?.architecture_layers?.find((layer) => layer.number === num);
+      return l ? l.status !== 'NOT INITIALIZED' : false;
+    };
+
+    const isLayer10Ready = isLayerActive(10);
+    const isLayer04Ready = isLayerActive(4);
+    const isLayer03Ready = isLayerActive(3);
+    const isLayer07Ready = isLayerActive(7);
+    const isLayer08Ready = isLayerActive(8);
+    const isLayer09Ready = isLayerActive(9);
+
+    const hasRiskScore =
+      summary?.metrics?.overall_risk_score !== null &&
+      summary?.metrics?.overall_risk_score !== undefined;
+
     const metrics: DashboardMetric[] = [
       {
         id: 'risk',
         label: 'Overall Risk Score',
-        value: null,
-        status: 'NOT INITIALIZED',
+        value: hasRiskScore ? summary!.metrics.overall_risk_score : null,
+        status: hasRiskScore
+          ? ((summary?.metrics?.overall_risk_status as any) || 'ONLINE')
+          : isLayer10Ready
+            ? 'READY'
+            : 'NOT INITIALIZED',
+        statusLabel: hasRiskScore
+          ? `${summary!.metrics.overall_risk_score}/100`
+          : isLayer10Ready
+            ? 'AWAITING EVALUATION'
+            : 'NOT INITIALIZED',
         icon: Gauge,
-        source: 'unavailable',
+        source: hasRiskScore || isLayer10Ready ? 'backend' : 'unavailable',
         href: '/risk-assessment',
       },
       {
         id: 'sessions',
         label: 'Active VPN Sessions',
-        value: summary ? summary.metrics.active_vpn_sessions : 0,
-        status: summary ? (summary.metrics.active_vpn_sessions > 0 ? 'ONLINE' : 'ONLINE') : 'NOT INITIALIZED',
+        value: summary ? summary.metrics.active_vpn_sessions : null,
+        status: summary
+          ? (summary.metrics.active_vpn_sessions > 0 ? 'ONLINE' : 'ONLINE')
+          : isLayer04Ready
+            ? 'ONLINE'
+            : 'NOT INITIALIZED',
         statusLabel: summary
           ? `${summary.metrics.active_vpn_sessions} SESSIONS`
-          : 'SESSION ENGINE NOT INITIALIZED',
+          : isLayer04Ready
+            ? '0 SESSIONS'
+            : 'SESSION ENGINE NOT INITIALIZED',
         icon: Cable,
-        source: summary ? 'backend' : 'unavailable',
+        source: summary || isLayer04Ready ? 'backend' : 'unavailable',
         href: '/ipsec-sessions',
       },
       {
         id: 'sas',
         label: 'Active Security Associations',
-        value: summary ? summary.metrics.active_sas : 0,
-        status: summary ? (summary.metrics.active_sas > 0 ? 'ONLINE' : 'ONLINE') : 'NOT INITIALIZED',
+        value: summary ? summary.metrics.active_sas : null,
+        status: summary
+          ? (summary.metrics.active_sas > 0 ? 'ONLINE' : 'ONLINE')
+          : isLayer04Ready
+            ? 'ONLINE'
+            : 'NOT INITIALIZED',
         statusLabel: summary
           ? `${summary.metrics.active_sas} ACTIVE SAs`
-          : 'SA ENGINE NOT INITIALIZED',
+          : isLayer04Ready
+            ? '0 ACTIVE SAs'
+            : 'SA ENGINE NOT INITIALIZED',
         icon: KeyRound,
-        source: summary ? 'backend' : 'unavailable',
+        source: summary || isLayer04Ready ? 'backend' : 'unavailable',
         href: '/sa-lifecycle',
       },
       {
         id: 'packets',
         label: 'Packets Analyzed',
-        value: summary ? summary.metrics.packets_analyzed : 0,
-        status: summary ? (summary.metrics.packets_analyzed > 0 ? 'ONLINE' : 'ONLINE') : 'NOT INITIALIZED',
+        value: summary ? summary.metrics.packets_analyzed : null,
+        status: summary
+          ? (summary.metrics.packets_analyzed > 0 ? 'ONLINE' : 'ONLINE')
+          : isLayer03Ready
+            ? 'ONLINE'
+            : 'NOT INITIALIZED',
         statusLabel: summary
           ? `${summary.metrics.packets_analyzed} TOTAL`
-          : 'ANALYSIS NOT INITIALIZED',
+          : isLayer03Ready
+            ? '0 TOTAL'
+            : 'ANALYSIS NOT INITIALIZED',
         icon: Network,
-        source: summary ? 'backend' : 'unavailable',
+        source: summary || isLayer03Ready ? 'backend' : 'unavailable',
         href: '/packet-analysis',
       },
       {
         id: 'anomalies',
         label: 'AI Anomalies',
-        value: summary ? summary.metrics.ai_anomalies : 0,
-        status: summary ? (summary.metrics.ai_anomalies > 0 ? 'WARNING' : 'ONLINE') : 'NOT INITIALIZED',
+        value: summary ? summary.metrics.ai_anomalies : null,
+        status: summary
+          ? (summary.metrics.ai_anomalies > 0 ? 'WARNING' : 'ONLINE')
+          : isLayer08Ready
+            ? 'ONLINE'
+            : 'NOT INITIALIZED',
         statusLabel: summary
-          ? `${summary.metrics.ai_anomalies} FLAGGED`
-          : 'MODEL NOT INITIALIZED',
+          ? (summary.metrics.ai_anomalies > 0
+              ? `${summary.metrics.ai_anomalies} FLAGGED`
+              : (summary.ml_engine_status?.active_model_id ? 'INFERENCE READY' : 'ONLINE'))
+          : isLayer08Ready
+            ? 'INFERENCE READY'
+            : 'MODEL NOT INITIALIZED',
         icon: BrainCircuit,
-        source: summary ? 'backend' : 'unavailable',
+        source: summary || isLayer08Ready ? 'backend' : 'unavailable',
         href: '/ai-anomalies',
       },
       {
         id: 'drift',
         label: 'Security Drift Events',
-        value: summary ? summary.metrics.drift_events : 0,
-        status: summary ? (summary.metrics.drift_events > 0 ? 'WARNING' : 'ONLINE') : 'NOT INITIALIZED',
+        value: summary ? summary.metrics.drift_events : null,
+        status: summary
+          ? (summary.metrics.drift_events > 0 ? 'WARNING' : 'ONLINE')
+          : isLayer07Ready
+            ? 'ONLINE'
+            : 'NOT INITIALIZED',
         statusLabel: summary
           ? `${summary.metrics.drift_events} DRIFTING`
-          : 'ENGINE NOT INITIALIZED',
+          : isLayer07Ready
+            ? '0 DRIFTING'
+            : 'ENGINE NOT INITIALIZED',
         icon: GitCompare,
-        source: summary ? 'backend' : 'unavailable',
+        source: summary || isLayer07Ready ? 'backend' : 'unavailable',
         href: '/security-drift',
       },
       {
         id: 'vulnerabilities',
         label: 'Critical Vulnerabilities',
-        value: summary ? summary.metrics.vulnerabilities_critical : 0,
-        status: summary ? (summary.metrics.vulnerabilities_critical > 0 ? 'CRITICAL' : 'ONLINE') : 'NOT INITIALIZED',
+        value: summary ? summary.metrics.vulnerabilities_critical : null,
+        status: summary
+          ? (summary.metrics.vulnerabilities_critical > 0 ? 'CRITICAL' : 'ONLINE')
+          : isLayer09Ready
+            ? 'ONLINE'
+            : 'NOT INITIALIZED',
         statusLabel: summary
           ? `${summary.metrics.vulnerabilities_critical} CRITICAL`
-          : 'ENGINE NOT INITIALIZED',
+          : isLayer09Ready
+            ? '0 CRITICAL'
+            : 'ENGINE NOT INITIALIZED',
         icon: ShieldAlert,
-        source: summary ? 'backend' : 'unavailable',
+        source: summary || isLayer09Ready ? 'backend' : 'unavailable',
         href: '/vulnerabilities',
       },
       {
         id: 'capture',
         label: 'Capture Status',
         value: null,
-        status: summary ? (summary.metrics.capture_status === 'READY' ? 'ONLINE' : 'INACTIVE') : 'NOT INITIALIZED',
-        statusLabel: summary ? summary.metrics.capture_status : undefined,
+        status: summary
+          ? (summary.metrics.capture_status === 'READY' ? 'READY' : 'INACTIVE')
+          : isLayer03Ready
+            ? 'READY'
+            : 'NOT INITIALIZED',
+        statusLabel: summary
+          ? (summary.metrics.capture_status === 'READY' ? 'PCAP UPLOAD READY' : summary.metrics.capture_status)
+          : isLayer03Ready
+            ? 'PCAP UPLOAD READY'
+            : undefined,
         icon: Activity,
-        source: summary ? 'backend' : 'unavailable',
+        source: summary || isLayer03Ready ? 'backend' : 'unavailable',
         href: '/live-monitor',
       },
     ];
@@ -209,7 +278,13 @@ export function useDashboardData(): UseDashboardResult {
     }
 
     return {
-      risk: { score: null, classification: null, lastUpdated: null },
+      risk: {
+        score: summary?.metrics?.overall_risk_score ?? null,
+        classification: (summary?.metrics?.overall_risk_status as RiskClassification) ?? null,
+        lastUpdated: summary?.metrics?.overall_risk_score !== null && summary?.metrics?.overall_risk_score !== undefined
+          ? (summary?.posture?.last_refresh ?? null)
+          : null,
+      },
       metrics,
       traffic: null,
       riskHistory: null,
@@ -222,5 +297,5 @@ export function useDashboardData(): UseDashboardResult {
       loading,
       refetch: fetchSummary,
     };
-  }, [summary, loading, fetchSummary]);
+  }, [summary, loading, fetchSummary, status]);
 }

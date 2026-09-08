@@ -1,7 +1,7 @@
 """Dashboard API endpoints (Layer 13).
 
-Provides aggregated SOC operations data across analytical layers 01-09.
-Maintains strict scope: Layer 10 risk scores remain NOT INITIALIZED.
+Provides aggregated SOC operations data across analytical layers 01-14,
+including live composite risk posture from Layer 10.
 """
 
 from __future__ import annotations

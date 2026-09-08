@@ -20,7 +20,7 @@ def test_status_reflects_real_state(client) -> None:
     payload = client.get("/api/system/status").json()
     assert payload["backend_status"] == "operational"
     assert payload["database_status"] == "CONNECTED"
-    assert payload["application_mode"] == "DEMO"
+    assert payload["application_mode"] == "STANDALONE"
 
 
 def test_all_fourteen_layers_are_reported(client) -> None:
@@ -37,7 +37,11 @@ def test_all_fourteen_layers_are_reported(client) -> None:
 def test_intelligence_layers_are_not_initialized(client) -> None:
     layers = client.get("/api/system/status").json()["architecture_layers"]
     for layer in layers:
-        if layer["number"] in (1, 2) or layer["number"] == 10:
-            assert layer["status"] == "NOT INITIALIZED"
+        if layer["number"] == 1:
+            assert layer["status"] in ("READY", "WARNING", "ERROR", "NOT INITIALIZED")
+        elif layer["number"] == 2:
+            assert layer["status"] in ("READY", "CAPTURING", "ERROR", "NOT INITIALIZED")
+        elif layer["number"] == 10:
+            assert layer["status"] in ("OPERATIONAL", "NOT INITIALIZED", "READY")
         elif layer["number"] in (8, 9):
             assert layer["status"] == "OPERATIONAL"

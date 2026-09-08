@@ -8,7 +8,8 @@ narratives or speculative threat claims.
 from __future__ import annotations
 
 import math
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
+import numpy as np
 from app.layers.layer08_ai_ml.preprocessing import (
     FEATURE_LOOKUP,
     PreprocessingPipeline,
@@ -134,3 +135,75 @@ class AnomalyExplanationService:
             )
 
         return contributions, summary, anomalous_features_count
+
+    @staticmethod
+    def explain_cicids_vector(
+        feature_names: Sequence[str],
+        raw_values: np.ndarray,
+        scaled_values: np.ndarray,
+        importances: Optional[np.ndarray] = None,
+        attack_probability: float = 0.0,
+    ) -> Tuple[List[AnomalyFeatureContribution], str, int]:
+        """Rank CICFlowMeter features by |scaled value| × XGBoost importance."""
+        names = list(feature_names)
+        raw = np.asarray(raw_values, dtype=np.float64).reshape(-1)
+        scaled = np.asarray(scaled_values, dtype=np.float64).reshape(-1)
+        if importances is None:
+            weights = np.ones(len(names), dtype=np.float64)
+        else:
+            weights = np.asarray(importances, dtype=np.float64).reshape(-1)
+        if len(weights) != len(names):
+            weights = np.ones(len(names), dtype=np.float64)
+
+        magnitude = np.abs(scaled) * (weights + 1e-9)
+        total = float(np.sum(magnitude))
+        contributions: List[AnomalyFeatureContribution] = []
+        anomalous_count = 0
+        for idx, name in enumerate(names):
+            z = float(scaled[idx]) if idx < len(scaled) else 0.0
+            obs = float(raw[idx]) if idx < len(raw) else 0.0
+            if z > 1.5:
+                direction = "ABOVE_REFERENCE"
+                anomalous_count += 1
+            elif z < -1.5:
+                direction = "BELOW_REFERENCE"
+                anomalous_count += 1
+            else:
+                direction = "WITHIN_RANGE"
+            share = (float(magnitude[idx]) / total * 100.0) if total > 0 else 0.0
+            contributions.append(
+                AnomalyFeatureContribution(
+                    feature_name=name,
+                    display_name=name,
+                    category="FLOW",
+                    data_type="FLOAT",
+                    observed_value=obs,
+                    reference_mean=0.0,
+                    reference_std=1.0,
+                    reference_median=0.0,
+                    contribution_score=round(share, 2),
+                    deviation=round(z, 3),
+                    direction=direction,
+                    evidence_description=(
+                        f"CIC-IDS flow feature '{name}' observed {obs:g} "
+                        f"(standardized {z:+.2f}; local XGBoost attack probability "
+                        f"{attack_probability:.3f})."
+                    ),
+                )
+            )
+        contributions.sort(key=lambda c: c.contribution_score, reverse=True)
+        top = [c for c in contributions if c.direction != "WITHIN_RANGE"][:3]
+        if attack_probability >= 0.5:
+            summary = (
+                f"Local CIC-IDS2017 XGBoost classified this session as attack-like "
+                f"(p={attack_probability:.3f}). Strongest flow deviations: "
+                + (", ".join(f"{c.display_name} ({c.deviation:+.2f}σ)" for c in top) or "none")
+                + "."
+            )
+        else:
+            summary = (
+                f"Local CIC-IDS2017 XGBoost classified this session as benign-like "
+                f"(p={attack_probability:.3f}). "
+                f"{len(top)} of {len(names)} flow features exceed ±1.5σ."
+            )
+        return contributions, summary, anomalous_count

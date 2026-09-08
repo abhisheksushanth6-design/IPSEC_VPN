@@ -135,9 +135,24 @@ class DashboardService:
 
         capture_state = "READY" if (total_packets > 0 or pkt_status.state != "NOT INITIALIZED") else "IDLE"
 
+        # Layer 10 Risk Metrics
+        risk_score = None
+        risk_status = "READY"
+        try:
+            from app.layers.layer10_risk_engine.service import get_risk_engine_service
+            risk_svc = get_risk_engine_service()
+            risk_summary = risk_svc.get_summary(db)
+            if risk_summary.assessed_sessions_count > 0 and risk_summary.overall_risk_score is not None:
+                risk_score = risk_summary.overall_risk_score
+                risk_status = risk_summary.overall_risk_level or "OPERATIONAL"
+            else:
+                risk_status = "READY"
+        except Exception:
+            risk_status = "NOT INITIALIZED"
+
         return DashboardMetrics(
-            overall_risk_score=None,
-            overall_risk_status="NOT INITIALIZED",
+            overall_risk_score=risk_score,
+            overall_risk_status=risk_status,
             active_vpn_sessions=active_sessions,
             active_sas=active_sas,
             packets_analyzed=total_packets,
@@ -392,14 +407,15 @@ class DashboardService:
         protocol_counts: dict[str, int] = {}
         pkt_status = packet_service.status()
         if pkt_status.protocol_counts:
+            pc = pkt_status.protocol_counts
             protocol_counts = {
-                "IKE": pkt_status.protocol_counts.ike,
-                "ESP": pkt_status.protocol_counts.esp,
-                "AH": pkt_status.protocol_counts.ah,
-                "UDP": pkt_status.protocol_counts.udp,
-                "TCP": pkt_status.protocol_counts.tcp,
-                "ICMP": pkt_status.protocol_counts.icmp,
-                "OTHER": pkt_status.protocol_counts.other,
+                "IKE": getattr(pc, "IKE", getattr(pc, "ike", 0)),
+                "ESP": getattr(pc, "ESP", getattr(pc, "esp", 0)),
+                "AH": getattr(pc, "AH", getattr(pc, "ah", 0)),
+                "UDP": getattr(pc, "UDP", getattr(pc, "udp", 0)),
+                "TCP": getattr(pc, "TCP", getattr(pc, "tcp", 0)),
+                "ICMP": getattr(pc, "ICMP", getattr(pc, "icmp", 0)),
+                "OTHER": getattr(pc, "OTHER", getattr(pc, "other", 0)),
             }
         else:
             ike_sum = db.scalar(select(func.sum(IPsecSession.ike_packets))) or 0

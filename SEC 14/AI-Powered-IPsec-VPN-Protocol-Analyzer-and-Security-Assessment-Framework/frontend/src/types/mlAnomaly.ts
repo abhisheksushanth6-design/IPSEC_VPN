@@ -40,6 +40,11 @@ export interface MLModelDiagnostics {
   score_p50: number;
   score_p75: number;
   score_threshold: number;
+  accuracy?: number;
+  f1?: number;
+  precision?: number;
+  recall?: number;
+  evaluation_strategy?: string;
 }
 
 export interface MLModelSummary {
