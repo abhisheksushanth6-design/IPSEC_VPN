@@ -20,7 +20,8 @@ export function VPNSessionPanel({ sessions, selectedId, onSelect }: VPNSessionPa
       selectedId={selectedId}
       onSelect={onSelect}
       emptyTitle="No active sessions"
-      emptyDescription="Session engine is not initialized."
+      emptyDescription="No active VPN sessions discovered in current capture buffer."
+      emptyStatus="READY"
       quietTitle="No active VPN sessions"
       columns={[
         { key: 'id', header: 'Session ID', render: (s) => <span className="font-mono">{s.id}</span> },

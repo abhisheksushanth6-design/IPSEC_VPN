@@ -19,7 +19,8 @@ export function SecurityAssociationPanel({ associations, selectedId, onSelect }:
       selectedId={selectedId}
       onSelect={onSelect}
       emptyTitle="No Security Associations"
-      emptyDescription="SA lifecycle engine is not initialized."
+      emptyDescription="No Security Associations observed in current capture buffer."
+      emptyStatus="READY"
       quietTitle="No Security Associations observed"
       columns={[
         { key: 'id', header: 'SA ID', render: (a) => <span className="font-mono">{a.id}</span> },

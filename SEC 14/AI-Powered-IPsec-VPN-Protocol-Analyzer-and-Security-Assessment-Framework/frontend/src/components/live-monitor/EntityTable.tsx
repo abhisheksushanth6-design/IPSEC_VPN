@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 
 import { EmptyState } from '@/components/states';
 import { StatusBadge } from '@/components/status';
+import type { StatusKind } from '@/types';
 import { cn } from '@/utils/cn';
 
 interface Column<T> {
@@ -22,6 +23,7 @@ interface EntityTableProps<T extends { id: string }> {
   onSelect: (row: T) => void;
   emptyTitle: string;
   emptyDescription: string;
+  emptyStatus?: StatusKind;
   /** Shown when rows is [] — the engine exists but observed nothing. */
   quietTitle: string;
   minWidth?: string;
@@ -33,7 +35,7 @@ interface EntityTableProps<T extends { id: string }> {
  */
 export function EntityTable<T extends { id: string }>({
   title, description, icon, columns, rows, selectedId, onSelect,
-  emptyTitle, emptyDescription, quietTitle, minWidth = '48rem',
+  emptyTitle, emptyDescription, emptyStatus = 'READY', quietTitle, minWidth = '48rem',
 }: EntityTableProps<T>) {
   const headingId = `${title.replace(/\s+/g, '-').toLowerCase()}-title`;
 
@@ -44,11 +46,11 @@ export function EntityTable<T extends { id: string }>({
           <h2 id={headingId} className="text-sm font-medium text-primary">{title}</h2>
           <p className="mt-0.5 text-xs text-muted">{description}</p>
         </div>
-        {rows === null ? <StatusBadge status="NOT INITIALIZED" size="sm" /> : null}
+        {rows === null ? <StatusBadge status={emptyStatus} size="sm" /> : null}
       </div>
 
       {rows === null ? (
-        <div className="p-4"><EmptyState icon={icon} title={emptyTitle} description={emptyDescription} status="NOT INITIALIZED" /></div>
+        <div className="p-4"><EmptyState icon={icon} title={emptyTitle} description={emptyDescription} status={emptyStatus} /></div>
       ) : rows.length === 0 ? (
         <div className="p-4"><EmptyState icon={icon} title={quietTitle} /></div>
       ) : (

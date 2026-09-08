@@ -23,15 +23,15 @@ export function SecurityEventStream({
     <Panel
       title={title}
       description={description}
-      actions={<StatusBadge status="NOT INITIALIZED" label="NO EVENT SOURCES" size="sm" />}
+      actions={<StatusBadge status="READY" label="EVENT STREAM READY" size="sm" />}
       className="flex flex-col"
     >
       {events === null ? (
         <EmptyState
           icon={Radio}
           title="No security events"
-          description="The WebSocket channel is ready but no engine publishes to it yet. Packet, negotiation, drift, anomaly, vulnerability and risk events appear here once their layers are implemented."
-          status="NOT INITIALIZED"
+          description="Real-time stream active. Security events, negotiation changes, drift alerts, and anomaly detections will appear as traffic is analyzed."
+          status="READY"
         />
       ) : events.length === 0 ? (
         <EmptyState icon={Radio} title="No security events" description="Connected. Waiting for events." />

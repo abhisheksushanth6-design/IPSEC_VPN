@@ -141,7 +141,11 @@ export function LiveMonitorPage() {
         </div>
       ) : null}
 
-      <MonitorBanner />
+      <MonitorBanner
+        captureState={data.captureState}
+        sourceVM={data.status?.source_vm}
+        nicNumber={data.status?.nic_number}
+      />
 
       <MonitorControlBar
         interfaces={data.interfaces}
@@ -200,7 +204,12 @@ export function LiveMonitorPage() {
       <MonitorFilters dataAvailable={dataAvailable} />
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] xl:items-start">
-        <PacketStream packets={data.packets} selectedId={selectedPacket?.id ?? null} onSelect={selectPacket} />
+        <PacketStream
+          packets={data.packets}
+          selectedId={selectedPacket?.id ?? null}
+          onSelect={selectPacket}
+          captureState={data.captureState}
+        />
         <PacketDetails packet={selectedPacket} onClose={() => setSelectedPacket(null)} />
       </div>
 

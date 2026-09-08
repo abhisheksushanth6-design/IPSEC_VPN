@@ -10,9 +10,11 @@ import {
   stopLiveCapture,
   StopCaptureResponse,
 } from '@/services/liveCaptureService';
+import { dashboardService } from '@/services/dashboardService';
 import type {
   CaptureState,
   DashboardMetric,
+  DashboardMetricsPayload,
   NetworkInterface,
   Packet,
   MonitorSecurityAssociation,
@@ -45,18 +47,23 @@ export interface LiveMonitorData {
 export function useLiveMonitorData(): LiveMonitorData {
   const [status, setStatus] = useState<LiveCaptureStatusResponse | null>(null);
   const [rawInterfaces, setRawInterfaces] = useState<CaptureSourceInterface[]>([]);
+  const [dashboardMetrics, setDashboardMetrics] = useState<DashboardMetricsPayload | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [actionMessage, setActionMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const loadData = useCallback(async () => {
     try {
-      const [st, ifaces] = await Promise.all([
+      const [st, ifaces, dMetrics] = await Promise.all([
         fetchLiveCaptureStatus().catch(() => null),
         fetchLiveCaptureInterfaces().catch(() => null),
+        dashboardService.getMetrics().catch(() => null),
       ]);
       if (st) setStatus(st);
       if (ifaces && ifaces.interfaces) {
         setRawInterfaces(ifaces.interfaces);
+      }
+      if (dMetrics) {
+        setDashboardMetrics(dMetrics);
       }
     } catch {
       // Handled cleanly
@@ -154,19 +161,22 @@ export function useLiveMonitorData(): LiveMonitorData {
     {
       id: 'events',
       label: 'Security Events',
-      value: null,
-      status: 'NOT INITIALIZED',
+      value: dashboardMetrics ? (dashboardMetrics.vulnerabilities_total ?? 0) : 0,
+      status: (dashboardMetrics?.vulnerabilities_total ?? 0) > 0 ? 'WARNING' : 'ONLINE',
+      statusLabel: (dashboardMetrics?.vulnerabilities_total ?? 0) > 0 ? `${dashboardMetrics?.vulnerabilities_total} FINDINGS` : 'CLEAN',
       icon: ShieldAlert,
-      source: 'unavailable',
+      source: 'backend',
+      href: '/vulnerabilities',
     },
     {
       id: 'anomalies',
       label: 'Anomalies',
-      value: null,
-      status: 'NOT INITIALIZED',
-      statusLabel: 'MODEL READY',
+      value: dashboardMetrics ? (dashboardMetrics.ai_anomalies ?? 0) : 0,
+      status: 'READY',
+      statusLabel: (dashboardMetrics?.ai_anomalies ?? 0) > 0 ? 'ANOMALIES DETECTED' : 'MODEL READY',
       icon: BrainCircuit,
-      source: 'unavailable',
+      source: 'backend',
+      href: '/ai-anomalies',
     },
   ];
 

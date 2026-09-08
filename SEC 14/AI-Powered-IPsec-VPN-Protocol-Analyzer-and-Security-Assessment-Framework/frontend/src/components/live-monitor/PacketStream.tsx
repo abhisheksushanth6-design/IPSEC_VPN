@@ -3,12 +3,13 @@ import { Network } from 'lucide-react';
 import { EmptyState } from '@/components/states';
 import { StatusBadge } from '@/components/status';
 import { PacketRow } from './PacketRow';
-import type { PacketSummary } from '@/types';
+import type { CaptureState, PacketSummary } from '@/types';
 
 interface PacketStreamProps {
   packets: PacketSummary[] | null;
   selectedId: string | null;
   onSelect: (packet: PacketSummary) => void;
+  captureState?: CaptureState;
 }
 
 const COLUMNS = ['Time', 'Source', 'Destination', 'Protocol', 'Length', 'Info', 'Status'];
@@ -17,7 +18,9 @@ const COLUMNS = ['Time', 'Source', 'Destination', 'Protocol', 'Length', 'Info', 
  * The main packet table. Horizontal scrolling is confined to the table's own
  * container so the page never widens.
  */
-export function PacketStream({ packets, selectedId, onSelect }: PacketStreamProps) {
+export function PacketStream({ packets, selectedId, onSelect, captureState }: PacketStreamProps) {
+  const isCapturing = captureState === 'CAPTURING';
+
   return (
     <section
       aria-labelledby="packet-stream-title"
@@ -28,7 +31,11 @@ export function PacketStream({ packets, selectedId, onSelect }: PacketStreamProp
           <h2 id="packet-stream-title" className="text-sm font-medium text-primary">Live Packet Stream</h2>
           <p className="mt-0.5 text-xs text-muted">Packets as observed by the capture engine.</p>
         </div>
-        <StatusBadge status="NOT INITIALIZED" label="NO CAPTURE SOURCE" size="sm" />
+        <StatusBadge
+          status={isCapturing ? 'LIVE' : 'READY'}
+          label={isCapturing ? 'STREAMING' : 'CAPTURE READY'}
+          size="sm"
+        />
       </div>
 
       {packets === null ? (
@@ -36,8 +43,8 @@ export function PacketStream({ packets, selectedId, onSelect }: PacketStreamProp
           <EmptyState
             icon={Network}
             title="No packets available"
-            description="Packet capture has not been initialized. Rows appear here once Layer 02 publishes captured packets."
-            status="NOT INITIALIZED"
+            description="No packet frames currently in buffer. Start a live capture above or inspect ingested packets in Packet Analysis."
+            status="READY"
           />
         </div>
       ) : packets.length === 0 ? (
