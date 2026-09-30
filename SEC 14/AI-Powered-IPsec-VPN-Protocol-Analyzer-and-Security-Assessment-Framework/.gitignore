@@ -47,6 +47,7 @@ backend/data/captures/
 # ---- Generated reports ----
 *.pdf
 backend/data/reports/
+!docs/demo/*.pdf
 
 # ---- Models & Datasets (preserve CIC-IDS bundle, ignore temp test models) ----
 backend/data/models/model_isoforest_*.joblib

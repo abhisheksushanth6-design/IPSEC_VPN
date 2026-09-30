@@ -94,6 +94,12 @@ class IKEProposal:
     prf_algorithms: list[str] = field(default_factory=list)
     dh_groups: list[str] = field(default_factory=list)
     esn: Optional[str] = None
+    # IKEv1 Phase 1 transforms carry these as cleartext attributes (RFC 2409 Appendix A).
+    # IKEv2 never exposes them outside the encrypted SK payload, so they stay None.
+    transform_number: Optional[int] = None
+    auth_method: Optional[str] = None
+    lifetime_seconds: Optional[int] = None
+    lifetime_kilobytes: Optional[int] = None
 
 
 @dataclass
@@ -105,6 +111,11 @@ class IKEPayload:
     notify_type: Optional[int] = None
     notify_name: Optional[str] = None
     proposals: list[IKEProposal] = field(default_factory=list)
+    # Key Exchange payload (IKEv2 type 34): the DH group is sent in cleartext
+    # ahead of the public value, which lets it be cross-checked against the SA proposal.
+    ke_dh_group: Optional[int] = None
+    ke_dh_group_name: Optional[str] = None
+    ke_data_length: Optional[int] = None
 
 
 @dataclass

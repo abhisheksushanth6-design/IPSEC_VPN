@@ -365,24 +365,32 @@ class DashboardService:
                 try:
                     data = json.loads(s.detail_json)
                     if isinstance(data, dict):
-                        ike_info = data.get("ike_info") or {}
+                        # Session records store the observed negotiation under "ike" (legacy "ike_info").
+                        ike_info = data.get("ike") or data.get("ike_info") or {}
                         if isinstance(ike_info, dict):
                             if ike_info.get("version"):
                                 ike_versions.add(str(ike_info["version"]))
                             if ike_info.get("cipher"):
-                                encryption_algos.add(str(ike_info["cipher"]))
+                                key_len = ike_info.get("key_length")
+                                encryption_algos.add(f"{ike_info['cipher']}-{key_len}" if key_len else str(ike_info["cipher"]))
                             if ike_info.get("integrity"):
                                 integrity_algos.add(str(ike_info["integrity"]))
                             if ike_info.get("dh_group"):
                                 dh_groups.add(str(ike_info["dh_group"]))
                             if ike_info.get("prf"):
                                 prf_algos.add(str(ike_info["prf"]))
-                        esp_info = data.get("esp_info") or {}
+                            if ike_info.get("pfs_enabled") is not None:
+                                pfs_enabled = bool(ike_info["pfs_enabled"])
+                        esp_info = data.get("esp") or data.get("esp_info") or {}
                         if isinstance(esp_info, dict):
                             if esp_info.get("cipher"):
                                 encryption_algos.add(str(esp_info["cipher"]))
                             if esp_info.get("auth"):
                                 integrity_algos.add(str(esp_info["auth"]))
+                            inferred = esp_info.get("inferred") or {}
+                            if isinstance(inferred, dict) and inferred.get("framing_hypothesis") and inferred.get("provenance") == "INFERRED":
+                                short = {"CBC-16": "AES-CBC family", "CTR-OR-CBC-8": "AEAD/CTR or 64-bit CBC"}.get(inferred["framing_hypothesis"], inferred["framing_hypothesis"])
+                                encryption_algos.add(f"ESP: {short} [inferred from framing]")
                 except Exception:
                     pass
 

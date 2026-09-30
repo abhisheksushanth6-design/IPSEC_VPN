@@ -80,7 +80,7 @@ describe('responsive behaviour', () => {
 
     await user.click(await screen.findByRole('button', { name: /open navigation/i }));
     const nav = await screen.findByRole('navigation', { name: /main navigation/i });
-    await user.click(within(nav).getByRole('link', { name: 'Vulnerabilities' }));
+    await user.click(within(nav).getByRole('link', { name: 'Security Assessment' }));
 
     await waitFor(() => {
       expect(
@@ -88,7 +88,7 @@ describe('responsive behaviour', () => {
       ).not.toBeInTheDocument();
     });
     expect(
-      await screen.findByRole('heading', { name: /vulnerabilities/i }),
+      await screen.findByRole('heading', { name: /security assessment findings/i }),
     ).toBeInTheDocument();
   });
   it.each([['desktop', false], ['compact', true]] as const)(

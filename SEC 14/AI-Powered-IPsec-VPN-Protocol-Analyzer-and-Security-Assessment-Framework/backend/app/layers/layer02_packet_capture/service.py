@@ -429,7 +429,10 @@ class LiveCaptureService:
             return "ERROR"
         if self.vbox_manager.is_available:
             return "READY"
-        return "NOT INITIALIZED"
+        # Live VM capture needs the VirtualBox testbed; offline PCAP ingestion and
+        # software-testbed captures still flow through this layer, so the layer is
+        # partially operational rather than uninitialised.
+        return "PARTIALLY_OPERATIONAL"
 
 
 # Singleton instance accessor

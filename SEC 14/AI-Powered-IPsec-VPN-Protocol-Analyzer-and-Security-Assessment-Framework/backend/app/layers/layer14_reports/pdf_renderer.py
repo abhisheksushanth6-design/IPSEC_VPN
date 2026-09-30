@@ -245,6 +245,7 @@ class PDFReportRenderer:
             self._build_cover_page(story, data)
             story.append(PageBreak())
             self._build_executive_summary(story, data)
+            self._build_sih_assessment(story, data, executive=True)
             if data.traffic_classification:
                 self._build_traffic_classification(story, data)
             self._build_recommendations(story, data)
@@ -258,6 +259,9 @@ class PDFReportRenderer:
 
             # 2. Executive Summary & Security Posture
             self._build_executive_summary(story, data)
+
+            # 2A. SIH 26160 Security Assessment Engine (per-session, provenance-tagged)
+            self._build_sih_assessment(story, data, executive=False)
 
             # 3. Environment & Capture Telemetry
             self._build_environment_and_capture(story, data)
@@ -494,6 +498,123 @@ class PDFReportRenderer:
             ])
         )
         story.append(risk_table)
+        story.append(Spacer(1, 12))
+
+    def _build_sih_assessment(self, story: list[Any], data: SecurityAssessmentReportData, executive: bool) -> None:
+        """Security Assessment Engine output: score, coverage, crypto/PFS/replay/lifetime, compliance profiles, findings.
+
+        Every value carries its provenance (OBSERVED / INFERRED / PREDICTED / UNAVAILABLE) so the reader can tell
+        what the capture proved from what was inferred or could not be determined.
+        """
+        sa = data.sih_security_assessment
+        story.append(Paragraph("1A. Security Assessment Engine — Cryptographic &amp; Configuration Posture", self.styles["SectionHeading"]))
+        story.append(HRFlowable(width="100%", thickness=0.5, color=colors.HexColor("#CBD5E1"), spaceAfter=8))
+        if not sa:
+            story.append(Paragraph("No session was available for the Security Assessment Engine (load a capture and discover sessions first).", self.styles["MutedNote"]))
+            story.append(Spacer(1, 10))
+            return
+
+        score = sa.get("overall_security_score", 0.0)
+        posture = sa.get("security_posture", "UNKNOWN")
+        coverage = sa.get("coverage", {}) or {}
+        crypto = sa.get("cryptographic_strength", {}) or {}
+        pfs = sa.get("forward_secrecy", {}) or {}
+        replay = sa.get("replay_protection", {}) or {}
+        life = sa.get("key_lifetime", {}) or {}
+        meta = sa.get("metadata_exposure", {}) or {}
+        proto = sa.get("protocol_identification", {}) or {}
+        traffic = sa.get("traffic_prediction", {}) or {}
+        comp = sa.get("configuration_compliance", {}) or {}
+
+        bg = "#F0FDF4" if score >= 85 else "#FEFCE8" if score >= 70 else "#FEF2F2"
+        border = "#22C55E" if score >= 85 else "#EAB308" if score >= 70 else "#EF4444"
+        headline = [[Paragraph(
+            f"<b>SESSION {sa.get('session_id', '')} — SECURITY SCORE {score:.1f} / 100 ({posture})</b><br/>"
+            f"<b>Evidence coverage:</b> {coverage.get('summary', 'n/a')} &nbsp;|&nbsp; <b>AI confidence:</b> {float(sa.get('ai_confidence', 0.0)):.0%}<br/>"
+            f"<b>Protocol:</b> {proto.get('protocol_type', '?')} &nbsp;|&nbsp; <b>IKE:</b> {proto.get('ike_version', '?')} &nbsp;|&nbsp; "
+            f"<b>Mode:</b> {proto.get('ipsec_mode', '?')} [{proto.get('mode_provenance', '?')}] &nbsp;|&nbsp; "
+            f"<b>Traffic inside ESP:</b> {traffic.get('predicted_type', '?')} ({float(traffic.get('confidence', 0.0)):.0%}{', abstained' if traffic.get('abstained') else ''}) [PREDICTED]",
+            self.styles["BodyDark"])]]
+        box = Table(headline, colWidths=[530])
+        box.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor(bg)), ("BOX", (0, 0), (-1, -1), 1, colors.HexColor(border)),
+            ("TOPPADDING", (0, 0), (-1, -1), 8), ("BOTTOMPADDING", (0, 0), (-1, -1), 8), ("LEFTPADDING", (0, 0), (-1, -1), 10),
+        ]))
+        story.append(box)
+        story.append(Spacer(1, 8))
+
+        def _row(label: str, value: str, prov: str, detail: str) -> list[Any]:
+            return [Paragraph(f"<b>{label}</b>", self.styles["TableCell"]), Paragraph(value, self.styles["TableCell"]),
+                    Paragraph(prov, self.styles["TableCell"]), Paragraph(detail, self.styles["TableCell"])]
+
+        dims = [[Paragraph("<b>Dimension</b>", self.styles["TableHeader"]), Paragraph("<b>Result</b>", self.styles["TableHeader"]),
+                 Paragraph("<b>Provenance</b>", self.styles["TableHeader"]), Paragraph("<b>Evidence</b>", self.styles["TableHeader"])]]
+        key_len = f"-{crypto.get('key_length_bits')}" if crypto.get("key_length_bits") else ""
+        dims.append(_row("Cryptographic strength", f"Grade {crypto.get('grade', 'N/A')} — {crypto.get('cipher', '?')}{key_len} / {crypto.get('integrity_algorithm', '?')} / {crypto.get('dh_group', '?')}",
+                         crypto.get("provenance", "?") + (" (provisional)" if crypto.get("provisional") else ""), "; ".join((crypto.get("details") or [])[:2])[:400]))
+        dims.append(_row("Forward secrecy", f"{pfs.get('pfs_status', 'UNKNOWN')} ({pfs.get('security_level', '?')}, {float(pfs.get('confidence', 0.0)):.0%})", pfs.get("provenance", "?"), str(pfs.get("details", ""))[:400]))
+        dims.append(_row("Replay protection", f"{replay.get('verdict', 'UNVERIFIED')} — {replay.get('duplicates_count', 0)} duplicates, {replay.get('out_of_order_count', 0)} reordered (max distance {replay.get('max_reorder_distance', 0)})",
+                         "OBSERVED" if replay.get("assessable") else "UNAVAILABLE", str(replay.get("window_inference", ""))[:400]))
+        dims.append(_row("Key lifetime", f"{life.get('lifetime_status', '?')} — {float(life.get('observed_duration_seconds', 0.0)):.0f}s / {life.get('observed_volume_bytes', 0)} bytes" + (f"; negotiated {life.get('negotiated_lifetime_seconds')}s" if life.get("negotiated_lifetime_seconds") else ""),
+                         life.get("lifetime_provenance", "?"), str(life.get("details", ""))[:400]))
+        dims.append(_row("Metadata exposure", f"{meta.get('exposure_level', '?')} ({float(meta.get('composite_score', 0.0)):.1f}/100)" + (" — TFC padding detected" if meta.get("tfc_padding_detected") else ""),
+                         "PREDICTED" if (meta.get("traffic_context") or {}).get("applied") else "OBSERVED", "; ".join((meta.get("observable_vectors") or [])[:5])[:400]))
+        dims.append(_row("Rule compliance", f"{comp.get('compliance_status', '?')} — {comp.get('rules_passed', 0)}/{comp.get('rules_evaluated', 0)} rules passed", "OBSERVED",
+                         "; ".join(f"{v.get('rule_id')} ({v.get('severity')})" for v in (comp.get("violations") or [])[:6])[:400] or "No rule violations"))
+        t = Table(dims, colWidths=[95, 190, 70, 175])
+        t.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1E293B")), ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.HexColor("#F8FAFC"), colors.white]),
+            ("BOX", (0, 0), (-1, -1), 1, colors.HexColor("#CBD5E1")), ("INNERGRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#E2E8F0")),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"), ("TOPPADDING", (0, 0), (-1, -1), 4), ("BOTTOMPADDING", (0, 0), (-1, -1), 4), ("LEFTPADDING", (0, 0), (-1, -1), 5),
+        ]))
+        story.append(t)
+        story.append(Spacer(1, 8))
+
+        profiles = comp.get("profiles") or []
+        if profiles:
+            rows = [[Paragraph("<b>Compliance profile</b>", self.styles["TableHeader"]), Paragraph("<b>Status</b>", self.styles["TableHeader"]),
+                     Paragraph("<b>Score</b>", self.styles["TableHeader"]), Paragraph("<b>Coverage</b>", self.styles["TableHeader"]), Paragraph("<b>Summary</b>", self.styles["TableHeader"])]]
+            for p in profiles:
+                st = p.get("status", "?")
+                badge = self.styles["BadgeLow"] if st == "COMPLIANT" else self.styles["BadgeMedium"] if st in ("PARTIALLY_COMPLIANT", "NOT_ASSESSABLE") else self.styles["BadgeHigh"]
+                rows.append([Paragraph(p.get("profile_name", p.get("profile_id", "")), self.styles["TableCell"]), Paragraph(st, badge),
+                             Paragraph("—" if p.get("score") is None else f"{p['score']:.0f}", self.styles["TableCell"]),
+                             Paragraph(f"{float(p.get('coverage', 0.0)):.0%}", self.styles["TableCell"]), Paragraph(str(p.get("summary", ""))[:300], self.styles["TableCell"])])
+            pt = Table(rows, colWidths=[170, 80, 40, 55, 185])
+            pt.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1E293B")), ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.HexColor("#F8FAFC"), colors.white]),
+                ("BOX", (0, 0), (-1, -1), 1, colors.HexColor("#CBD5E1")), ("INNERGRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#E2E8F0")),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"), ("TOPPADDING", (0, 0), (-1, -1), 4), ("BOTTOMPADDING", (0, 0), (-1, -1), 4), ("LEFTPADDING", (0, 0), (-1, -1), 5),
+            ]))
+            story.append(pt)
+            story.append(Spacer(1, 8))
+
+        findings = sa.get("explainable_findings") or []
+        if findings and not executive:
+            rows = [[Paragraph("<b>Finding</b>", self.styles["TableHeader"]), Paragraph("<b>Severity</b>", self.styles["TableHeader"]),
+                     Paragraph("<b>Evidence</b>", self.styles["TableHeader"]), Paragraph("<b>Reason → Recommendation</b>", self.styles["TableHeader"])]]
+            for f in findings[:12]:
+                sev = f.get("severity", "MEDIUM")
+                badge = self.styles["BadgeCritical"] if sev == "CRITICAL" else self.styles["BadgeHigh"] if sev == "HIGH" else self.styles["BadgeMedium"] if sev == "MEDIUM" else self.styles["BadgeLow"]
+                rows.append([Paragraph(f"{f.get('finding', '')}<br/><font size='6' color='#64748B'>[{f.get('provenance', 'OBSERVED')}{(' · ' + f['rule_id']) if f.get('rule_id') else ''}]</font>", self.styles["TableCell"]),
+                             Paragraph(sev, badge), Paragraph(str(f.get("evidence", ""))[:260], self.styles["TableCell"]),
+                             Paragraph(f"{str(f.get('reason', ''))[:220]}<br/><b>→</b> {str(f.get('recommendation', ''))[:220]}", self.styles["TableCell"])])
+            ft = Table(rows, colWidths=[130, 55, 160, 185])
+            ft.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1E293B")), ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.HexColor("#F8FAFC"), colors.white]),
+                ("BOX", (0, 0), (-1, -1), 1, colors.HexColor("#CBD5E1")), ("INNERGRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#E2E8F0")),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"), ("TOPPADDING", (0, 0), (-1, -1), 4), ("BOTTOMPADDING", (0, 0), (-1, -1), 4), ("LEFTPADDING", (0, 0), (-1, -1), 5),
+            ]))
+            story.append(Paragraph("Explainable findings (Finding → Evidence → Severity → Reason → Recommendation)", self.styles["BodyDark"]))
+            story.append(Spacer(1, 4))
+            story.append(ft)
+        elif executive and findings:
+            top = [f for f in findings if f.get("severity") in ("CRITICAL", "HIGH")][:5] or findings[:3]
+            story.append(Paragraph("<b>Priority findings:</b> " + "; ".join(f"{f.get('finding')} ({f.get('severity')})" for f in top), self.styles["BodyDark"]))
+        unassessable = coverage.get("unassessable") or []
+        if unassessable:
+            story.append(Spacer(1, 4))
+            story.append(Paragraph("<b>Not assessable from this capture:</b> " + "; ".join(f"{u.get('component')} — {u.get('reason')}" for u in unassessable), self.styles["MutedNote"]))
         story.append(Spacer(1, 12))
 
     def _build_environment_and_capture(self, story: list[Any], data: SecurityAssessmentReportData) -> None:

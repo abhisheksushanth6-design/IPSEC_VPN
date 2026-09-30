@@ -114,7 +114,7 @@ describe('AI / ML Anomaly Detection Engine (Layer 08)', () => {
 
     await waitFor(() => {
       expect(
-        screen.getByRole('heading', { name: /AI \/ ML ANOMALY DETECTION ENGINE/i }),
+        screen.getByRole('heading', { name: /SUPPLEMENTARY ANOMALY DETECTION/i }),
       ).toBeInTheDocument();
     });
 
@@ -155,7 +155,7 @@ describe('AI / ML Anomaly Detection Engine (Layer 08)', () => {
       expect(screen.getByText(/Multi-Layer End-to-End Pipeline Lineage/i)).toBeInTheDocument();
       expect(screen.getByText(/Packet Capture/i)).toBeInTheDocument();
       expect(screen.getByText(/Session Reassembly/i)).toBeInTheDocument();
-      expect(screen.getAllByText(/SA Lifecycle/i).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/SA & Protocol State/i).length).toBeGreaterThan(0);
       expect(screen.getByText(/Feature Vector/i)).toBeInTheDocument();
       expect(screen.getByText(/Baseline Profile/i)).toBeInTheDocument();
       expect(screen.getByText(/Drift Analysis/i)).toBeInTheDocument();

@@ -142,7 +142,7 @@ describe('Security Rule & Vulnerability Engine (Layer 09)', () => {
 
     await waitFor(() => {
       expect(
-        screen.getByRole('heading', { name: /Vulnerabilities & Security Rule Engine/i }),
+        screen.getByRole('heading', { name: /Security Assessment Findings/i }),
       ).toBeInTheDocument();
     });
 
@@ -153,7 +153,7 @@ describe('Security Rule & Vulnerability Engine (Layer 09)', () => {
     expect(screen.getByText(/Deduplication Engine/i)).toBeInTheDocument();
 
     // Check Tab triggers
-    expect(screen.getByRole('button', { name: /Vulnerability Findings/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Security Assessment Findings/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Security Rule Catalog/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Architecture & Lineage/i })).toBeInTheDocument();
   });
@@ -210,8 +210,8 @@ describe('Security Rule & Vulnerability Engine (Layer 09)', () => {
     fireEvent.click(screen.getByRole('button', { name: /Architecture & Lineage/i }));
 
     await waitFor(() => {
-      expect(screen.getByText(/Layer 09 Architecture & Upstream Pipeline Lineage/i)).toBeInTheDocument();
-      expect(screen.getByText(/L09 • Vulnerability Engine/i)).toBeInTheDocument();
+      expect(screen.getByText(/Layer 08 Architecture & Upstream Pipeline Lineage/i)).toBeInTheDocument();
+      expect(screen.getByText(/L08 • Security Assessment Engine/i)).toBeInTheDocument();
     });
   });
 

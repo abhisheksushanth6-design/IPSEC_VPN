@@ -1,0 +1,54 @@
+{
+  "aead": true,
+  "capture_id": "5c9b2a6b641880ad22cbf14c214915bc203eb00c402e1a1683d6764a488cd96c",
+  "cipher_family": "AES-GCM",
+  "dh_group": 19,
+  "downgrade": false,
+  "duration_seconds": 17.3,
+  "encryption": "AES-256-GCM",
+  "generator": "software_testbed",
+  "ike": {
+    "offered": [
+      [
+        "AES-256-GCM",
+        "AEAD",
+        19
+      ]
+    ],
+    "selected_proposal": {
+      "cipher": "AES-256-GCM",
+      "dh_group": 19,
+      "integrity": "AEAD"
+    }
+  },
+  "ike_exchange_mode": "IKE_SA_INIT/IKE_AUTH",
+  "ike_included": true,
+  "ike_version": "2.0",
+  "integrity": "AEAD",
+  "ip_version": 4,
+  "ipsec_protocol": "ESP",
+  "key_length": 256,
+  "mode": "TUNNEL",
+  "nat_traversal": false,
+  "note": "Application traffic is model-generated; IPsec framing and encryption are real (RFC 4303 / RFC 4106 / RFC 3602 / RFC 7296).",
+  "pfs_enabled": true,
+  "profile_id": "PROFILE-01-TUNNEL-AES256GCM-PFS-IPV4",
+  "profile_name": "Standard Secure Gateway (Tunnel, AES-256-GCM, DH19, PFS, IPv4)",
+  "rekey_observed": true,
+  "seed": 2587900,
+  "spis": [
+    "0xf4781694",
+    "0x2e523ac7",
+    "0x16b9ebb6",
+    "0x4e284d01"
+  ],
+  "synthetic": true,
+  "tfc_padding": false,
+  "traffic_parameters": {
+    "ident": 931,
+    "interval": 0.5,
+    "payload": 1000
+  },
+  "traffic_type": "ICMP",
+  "weak_fallback_offer": false
+}

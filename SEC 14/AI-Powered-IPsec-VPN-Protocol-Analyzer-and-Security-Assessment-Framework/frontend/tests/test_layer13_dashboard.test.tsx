@@ -102,7 +102,10 @@ describe('Layer 13 — Layer 12 API Client Integration Tests', () => {
       ),
     );
 
-    await expect(dashboardService.getSummary()).rejects.toThrow(/SESSION_NOT_FOUND/);
+    await expect(dashboardService.getSummary()).rejects.toMatchObject({
+      code: 'SESSION_NOT_FOUND',
+      status: 404,
+    });
   });
 
   it('handles network failure gracefully without crashing', async () => {

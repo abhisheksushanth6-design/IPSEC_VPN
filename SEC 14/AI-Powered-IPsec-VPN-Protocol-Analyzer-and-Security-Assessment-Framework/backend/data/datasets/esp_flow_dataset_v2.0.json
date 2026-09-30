@@ -1,0 +1,61 @@
+{
+  "dataset_version": "2.0",
+  "feature_vector_version": "2.0",
+  "feature_names": [
+    "packet_count",
+    "byte_count",
+    "duration",
+    "mean_iat",
+    "iat_cv",
+    "small_packet_ratio",
+    "mtu_packet_ratio",
+    "inbound_outbound_byte_ratio",
+    "packets_per_second",
+    "bytes_per_second",
+    "chunk_burst_periodicity",
+    "mos_score_estimate",
+    "direction_asymmetry",
+    "mean_packet_length",
+    "packet_length_std",
+    "packet_length_cv",
+    "uplink_packet_ratio",
+    "idle_gap_ratio",
+    "max_gap_seconds",
+    "length_entropy_bits",
+    "burst_count",
+    "median_iat"
+  ],
+  "classes": [
+    "VOIP",
+    "WHATSAPP",
+    "EMAIL",
+    "WEB_BROWSING",
+    "ICMP",
+    "VIDEO_STREAMING",
+    "OTHER"
+  ],
+  "samples": 1400,
+  "samples_per_class": {
+    "VOIP": 200,
+    "WHATSAPP": 200,
+    "EMAIL": 200,
+    "WEB_BROWSING": 200,
+    "ICMP": 200,
+    "VIDEO_STREAMING": 200,
+    "OTHER": 200
+  },
+  "profiles": [
+    "PROFILE-01-TUNNEL-AES256GCM-PFS-IPV4",
+    "PROFILE-02-TRANSPORT-AES128CBC-PFS-IPV4",
+    "PROFILE-03-TUNNEL-AES128GCM-NOPFS-IPV4",
+    "PROFILE-04-TRANSPORT-AES256CBC-PFS-IPV6",
+    "PROFILE-05-TUNNEL-3DESCBC-NOPFS-IPV4",
+    "PROFILE-06-TUNNEL-AES256GCM-PFS-IPV6",
+    "PROFILE-09-TUNNEL-NATT-CHACHA-IPV4"
+  ],
+  "generator": "app.layers.layer01_test_environment.software_testbed (real RFC 4303 ESP framing + encryption, model-generated application traffic)",
+  "pipeline": "generate_capture \u2192 Layer 03 analyze_capture \u2192 FlowFeatures.from_packets (identical to inference path)",
+  "provenance": "SYNTHETIC_APPLICATION_TRAFFIC / REAL_IPSEC_FRAMING",
+  "real_user_traffic": false,
+  "csv": "esp_flow_features_v2.0.csv"
+}

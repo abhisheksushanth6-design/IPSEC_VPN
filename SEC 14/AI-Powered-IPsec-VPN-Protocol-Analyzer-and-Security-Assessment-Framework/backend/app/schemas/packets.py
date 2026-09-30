@@ -89,6 +89,10 @@ class IKEProposalSchema(_Model):
     prf_algorithms: list[str] = []
     dh_groups: list[str] = []
     esn: Optional[str] = None
+    transform_number: Optional[int] = None
+    auth_method: Optional[str] = None
+    lifetime_seconds: Optional[int] = None
+    lifetime_kilobytes: Optional[int] = None
 
 
 class IKEPayloadSchema(_Model):
@@ -99,6 +103,9 @@ class IKEPayloadSchema(_Model):
     notify_type: Optional[int] = None
     notify_name: Optional[str] = None
     proposals: list[IKEProposalSchema] = []
+    ke_dh_group: Optional[int] = None
+    ke_dh_group_name: Optional[str] = None
+    ke_data_length: Optional[int] = None
 
 
 class IKELayerSchema(_Model):

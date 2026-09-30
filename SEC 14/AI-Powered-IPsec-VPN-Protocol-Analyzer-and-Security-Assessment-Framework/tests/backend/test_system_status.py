@@ -38,7 +38,7 @@ def test_intelligence_layers_are_not_initialized(client) -> None:
     layers = client.get("/api/system/status").json()["architecture_layers"]
     for layer in layers:
         if layer["number"] == 1:
-            assert layer["status"] in ("READY", "WARNING", "ERROR", "NOT INITIALIZED")
+            assert layer["status"] in ("READY", "WARNING", "PARTIALLY_OPERATIONAL", "ERROR", "NOT INITIALIZED")
         elif layer["number"] == 2:
             assert layer["status"] in ("READY", "CAPTURING", "ERROR", "NOT INITIALIZED")
         elif layer["number"] == 3:

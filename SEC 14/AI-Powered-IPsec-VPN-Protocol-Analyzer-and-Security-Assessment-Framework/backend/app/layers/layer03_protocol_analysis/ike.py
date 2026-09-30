@@ -241,77 +241,109 @@ def decode_ike_proposals(data: bytes, is_v2: bool = True) -> list[IKEProposal]:
                 if spi_sz > 0 and spi_end <= offset + prop_len:
                     spi_hex = "0x" + data[offset + 8 : spi_end].hex()
 
-                # In IKEv1, transforms are chained inside the proposal
+                # In IKEv1 every transform is a complete cipher suite (RFC 2409 §5), so each
+                # one becomes its own proposal entry; the responder answers with exactly one.
                 trans_offset = spi_end
-                transforms = []
-                encr_list = []
-                integ_list = []
-                dh_list = []
-
                 for _ in range(num_transforms):
                     if trans_offset + 8 > offset + prop_len:
                         break
                     _next_t, _tres, trans_len, trans_num, trans_id, _tres2 = struct.unpack(
-                        "!BBHBBB", data[trans_offset : trans_offset + 7]
+                        "!BBHBBH", data[trans_offset : trans_offset + 8]
                     )
                     if trans_len < 8:
                         break
-
-                    # Walk attributes (2-byte type, 2-byte value)
-                    attr_ptr = trans_offset + 8
-                    key_len = None
-                    dh_grp = None
-                    while attr_ptr + 4 <= trans_offset + trans_len:
-                        atype, aval = struct.unpack("!HH", data[attr_ptr : attr_ptr + 4])
-                        # 0x8001: Encryption algorithm
-                        if atype == 0x8001:
-                            v1_encr = {1: "DES-CBC", 5: "3DES-CBC", 7: "AES-CBC"}.get(aval, f"ENCR_{aval}")
-                            encr_list.append(v1_encr)
-                        # 0x8002: Hash algorithm
-                        elif atype == 0x8002:
-                            v1_hash = {1: "MD5", 2: "SHA1", 4: "SHA2-256", 5: "SHA2-384", 6: "SHA2-512"}.get(aval, f"HASH_{aval}")
-                            integ_list.append(v1_hash)
-                        # 0x8004: Group description
-                        elif atype == 0x8004:
-                            dh_grp = DH_GROUPS.get(aval, f"Group_{aval}")
-                            dh_list.append(dh_grp)
-                        # 0x800E: Key length
-                        elif atype == 0x800E:
-                            key_len = aval
-                        attr_ptr += 4
-
-                    transforms.append(
-                        IKETransform(
-                            type_id=1,
-                            type_name="IKEv1_TRANSFORM",
-                            transform_id=trans_id,
-                            transform_name=f"Transform_{trans_id}",
-                            key_length=key_len,
+                    proposals.append(
+                        _decode_ikev1_transform(
+                            data[trans_offset + 8 : trans_offset + trans_len],
+                            prop_num,
+                            proto_id,
+                            spi_hex,
+                            trans_num,
+                            trans_id,
                         )
                     )
                     trans_offset += trans_len
 
-                proposals.append(
-                    IKEProposal(
-                        proposal_number=prop_num,
-                        protocol_id=proto_id,
-                        protocol_name=PROTOCOL_NAMES.get(proto_id, f"PROTO_{proto_id}"),
-                        spi=spi_hex,
-                        transforms=transforms,
-                        encryption_algorithms=encr_list,
-                        integrity_algorithms=integ_list,
-                        prf_algorithms=[],
-                        dh_groups=dh_list,
-                        esn=None,
-                    )
-                )
-
                 offset += prop_len
-                break  # Standard IKEv1 proposal chain handled safely
+                if _next_p == 0:
+                    break
     except Exception:
         pass
 
     return proposals
+
+
+IKEV1_ENCR = {1: "DES-CBC", 2: "IDEA-CBC", 3: "BLOWFISH-CBC", 4: "RC5-CBC", 5: "3DES-CBC", 6: "CAST-CBC", 7: "AES-CBC", 8: "CAMELLIA-CBC"}
+IKEV1_HASH = {1: "MD5", 2: "SHA1", 3: "TIGER", 4: "SHA2-256", 5: "SHA2-384", 6: "SHA2-512"}
+IKEV1_AUTH = {
+    1: "PSK", 2: "DSS-SIG", 3: "RSA-SIG", 4: "RSA-ENC", 5: "RSA-ENC-REVISED", 6: "ELGAMAL-ENC",
+    7: "ELGAMAL-ENC-REVISED", 8: "ECDSA-SIG", 9: "ECDSA-SHA256-P256", 10: "ECDSA-SHA384-P384",
+    11: "ECDSA-SHA512-P521", 64221: "HYBRID-INIT-RSA", 64222: "HYBRID-RESP-RSA",
+    65001: "XAUTH-INIT-PSK", 65002: "XAUTH-RESP-PSK", 65003: "XAUTH-INIT-DSS", 65004: "XAUTH-RESP-DSS",
+    65005: "XAUTH-INIT-RSA", 65006: "XAUTH-RESP-RSA",
+}
+
+
+def _decode_ikev1_transform(attrs: bytes, prop_num: int, proto_id: int, spi_hex, trans_num: int, trans_id: int) -> IKEProposal:
+    """Decode one IKEv1 transform: a list of TV/TLV attributes (RFC 2408 §3.3, RFC 2409 App. A)."""
+    encr_list: list[str] = []
+    integ_list: list[str] = []
+    dh_list: list[str] = []
+    key_len: int | None = None
+    auth_method: str | None = None
+    life_type: int | None = None
+    lifetime_seconds: int | None = None
+    lifetime_kb: int | None = None
+
+    ptr = 0
+    while ptr + 4 <= len(attrs):
+        atype, aval = struct.unpack("!HH", attrs[ptr : ptr + 4])
+        if atype & 0x8000:  # TV: 2-byte value
+            value = aval
+            ptr += 4
+        else:  # TLV: aval is the length of the value that follows
+            raw = attrs[ptr + 4 : ptr + 4 + aval]
+            value = int.from_bytes(raw, "big") if raw else 0
+            ptr += 4 + aval
+        attr = atype & 0x7FFF
+        if attr == 1:
+            encr_list.append(IKEV1_ENCR.get(value, f"ENCR_{value}"))
+        elif attr == 2:
+            integ_list.append(IKEV1_HASH.get(value, f"HASH_{value}"))
+        elif attr == 3:
+            auth_method = IKEV1_AUTH.get(value, f"AUTH_{value}")
+        elif attr == 4:
+            dh_list.append(DH_GROUPS.get(value, f"Group_{value}"))
+        elif attr == 11:
+            life_type = value
+        elif attr == 12:
+            if life_type == 2:
+                lifetime_kb = value
+            else:
+                lifetime_seconds = value
+        elif attr == 14:
+            key_len = value
+
+    transforms = [
+        IKETransform(type_id=1, type_name="IKEv1_TRANSFORM", transform_id=trans_id,
+                     transform_name=f"Transform_{trans_num}", key_length=key_len)
+    ]
+    return IKEProposal(
+        proposal_number=prop_num,
+        protocol_id=proto_id,
+        protocol_name=PROTOCOL_NAMES.get(proto_id, f"PROTO_{proto_id}"),
+        spi=spi_hex,
+        transforms=transforms,
+        encryption_algorithms=[f"{e}_{key_len}" if key_len and e.startswith("AES") else e for e in encr_list],
+        integrity_algorithms=integ_list,
+        prf_algorithms=[],
+        dh_groups=dh_list,
+        esn=None,
+        transform_number=trans_num,
+        auth_method=auth_method,
+        lifetime_seconds=lifetime_seconds,
+        lifetime_kilobytes=lifetime_kb,
+    )
 
 
 def decode_ike(data: bytes) -> IKELayer:
@@ -331,8 +363,14 @@ def decode_ike(data: bytes) -> IKELayer:
     payload_names = IKEV2_PAYLOADS if is_v2 else IKEV1_PAYLOADS
     flag_bits = IKEV2_FLAGS if is_v2 else IKEV1_FLAGS
 
-    payloads = _decode_payload_chain(data[ISAKMP_HEADER_LENGTH:], next_payload, payload_names, is_v2=is_v2)
-    encrypted = any(p.type_number in ENCRYPTED_PAYLOAD_TYPES for p in payloads) if is_v2 else bool(flags & 0x01)
+    if not is_v2 and flags & 0x01:
+        # IKEv1 Encryption flag: the whole payload chain after the header is ciphertext,
+        # so walking it would only produce fictitious payload names.
+        payloads: list[IKEPayload] = []
+        encrypted = True
+    else:
+        payloads = _decode_payload_chain(data[ISAKMP_HEADER_LENGTH:], next_payload, payload_names, is_v2=is_v2)
+        encrypted = any(p.type_number in ENCRYPTED_PAYLOAD_TYPES for p in payloads) if is_v2 else False
 
     # Flatten proposals across all payloads
     all_proposals = [prop for p in payloads for prop in p.proposals]
@@ -356,6 +394,10 @@ def decode_ike(data: bytes) -> IKELayer:
 
 
 NOTIFY_MESSAGE_TYPES = {
+    7: "INVALID_SYNTAX",
+    14: "NO_PROPOSAL_CHOSEN",
+    17: "INVALID_KE_PAYLOAD",
+    24: "AUTHENTICATION_FAILED",
     16384: "INITIAL_CONTACT",
     16388: "NAT_DETECTION_SOURCE_IP",
     16389: "NAT_DETECTION_DESTINATION_IP",
@@ -367,6 +409,10 @@ NOTIFY_MESSAGE_TYPES = {
     16395: "NON_FIRST_FRAGMENTS_ALSO",
     16404: "REDIRECT_SUPPORTED",
     16405: "REDIRECT",
+    16430: "IKEV2_FRAGMENTATION_SUPPORTED",
+    16431: "SIGNATURE_HASH_ALGORITHMS",
+    16435: "USE_PPK",
+    16441: "INTERMEDIATE_EXCHANGE_SUPPORTED",
 }
 
 
@@ -403,6 +449,15 @@ def _decode_payload_chain(data: bytes, first_type: int, names: dict[int, str], i
             body_bytes = data[offset + 4 : offset + length]
             proposals = decode_ike_proposals(body_bytes, is_v2=is_v2)
 
+        # IKEv2 Key Exchange payload (RFC 7296 §3.4): DH group number (2), reserved (2), key data.
+        ke_group: int | None = None
+        ke_group_name: str | None = None
+        ke_len: int | None = None
+        if is_v2 and payload_type == 34 and length >= 8:
+            ke_group = struct.unpack("!H", data[offset + 4 : offset + 6])[0]
+            ke_group_name = DH_GROUPS.get(ke_group, f"DH_GROUP_{ke_group}")
+            ke_len = length - 8
+
         payload_display = f"{names.get(payload_type, f'Payload {payload_type}')}"
         if notify_name:
             payload_display = f"{payload_display} ({notify_name})"
@@ -416,6 +471,9 @@ def _decode_payload_chain(data: bytes, first_type: int, names: dict[int, str], i
                 notify_type=notify_type,
                 notify_name=notify_name,
                 proposals=proposals,
+                ke_dh_group=ke_group,
+                ke_dh_group_name=ke_group_name,
+                ke_data_length=ke_len,
             )
         )
         if payload_type in ENCRYPTED_PAYLOAD_TYPES:

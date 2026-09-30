@@ -1,0 +1,52 @@
+{
+  "aead": true,
+  "capture_id": "6c551851e1f13a92023ef7b65b2cd07f788e27e61654e3cb2ff948a02fd2d9fb",
+  "cipher_family": "AES-GCM",
+  "dh_group": 14,
+  "downgrade": false,
+  "duration_seconds": 51.4,
+  "encryption": "AES-128-GCM",
+  "generator": "software_testbed",
+  "ike": {
+    "offered": [
+      [
+        "AES-128-GCM",
+        "AEAD",
+        14
+      ]
+    ],
+    "selected_proposal": {
+      "cipher": "AES-128-GCM",
+      "dh_group": 14,
+      "integrity": "AEAD"
+    }
+  },
+  "ike_exchange_mode": "IKE_SA_INIT/IKE_AUTH",
+  "ike_included": true,
+  "ike_version": "2.0",
+  "integrity": "AEAD",
+  "ip_version": 4,
+  "ipsec_protocol": "ESP",
+  "key_length": 128,
+  "mode": "TUNNEL",
+  "nat_traversal": false,
+  "note": "Application traffic is model-generated; IPsec framing and encryption are real (RFC 4303 / RFC 4106 / RFC 3602 / RFC 7296).",
+  "pfs_enabled": false,
+  "profile_id": "PROFILE-03-TUNNEL-AES128GCM-NOPFS-IPV4",
+  "profile_name": "Streaming Gateway (Tunnel, AES-128-GCM, DH14, PFS Disabled, IPv4)",
+  "rekey_observed": true,
+  "seed": 5653363,
+  "spis": [
+    "0xc0adb649",
+    "0xe1df9937",
+    "0x7ee23798",
+    "0xcf0d4464"
+  ],
+  "synthetic": true,
+  "tfc_padding": false,
+  "traffic_parameters": {
+    "kind": "background_sync"
+  },
+  "traffic_type": "OTHER",
+  "weak_fallback_offer": false
+}

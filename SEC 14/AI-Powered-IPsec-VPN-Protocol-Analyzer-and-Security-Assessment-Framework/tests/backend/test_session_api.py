@@ -112,7 +112,7 @@ def test_clearing_packets_clears_sessions(client) -> None:
 
 def test_architecture_layers_04_to_10_unchanged(client) -> None:
     layers = client.get("/api/system/status").json()["architecture_layers"]
-    assert layers[5]["name"] == "Session Fingerprinting & Baseline Profiling"
+    assert layers[5]["name"] == "IPsec Session Fingerprinting"
     assert layers[5]["status"] in ("IN DEVELOPMENT", "OPERATIONAL", "READY")  # Layer 06 (Section 9)
     assert layers[6]["status"] in ("IN DEVELOPMENT", "OPERATIONAL", "READY")  # Layer 07 (Section 10)
     assert layers[7]["status"] == "OPERATIONAL"  # Layer 08 (Section 11)

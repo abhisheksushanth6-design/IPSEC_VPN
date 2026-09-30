@@ -23,7 +23,10 @@ import synthetic_traffic_generator as STG
 from app.api.router import api_router
 from app.db.base import SessionLocal
 from app.layers.layer03_protocol_analysis import analyze_capture
-from app.layers.layer08_ai_ml.traffic_classifier import FlowFeatures, TrafficClassifier, TrafficClassificationService
+from sqlalchemy import select
+
+from app.layers.layer01_test_environment.software_testbed import generate_capture
+from app.layers.layer08_ai_ml.traffic_classifier import TARGET_CLASSES, FlowFeatures, TrafficClassifier, TrafficClassificationService
 from app.layers.layer09_vulnerability_engine.metadata_exposure import MetadataExposureService
 from app.layers.layer09_vulnerability_engine.rules.protocol_rules import (
     RuleIPv6ExtensionHeaderRisk,
@@ -258,7 +261,7 @@ def test_requirement_7_ai_traffic_classification_service_and_api(client: TestCli
         assert classification.traffic_type == "VOIP"
         assert classification.confidence >= 0.50
         probs = json.loads(classification.probabilities_json)
-        assert len(probs) == 5
+        assert set(probs) == set(TARGET_CLASSES)
         assert sum(probs.values()) == pytest.approx(1.0, abs=0.01)
 
     # Test REST API GET /api/traffic-analysis/session/{session_id}
@@ -308,15 +311,14 @@ def test_requirement_8_metadata_exposure_assessment_and_api(client: TestClient) 
         recs = json.loads(report.recommendations_json)
         assert len(recs) > 0
 
-    # Test RuleTFCMissingPadding
-    packets = packet_service.all_packets()
+    # RuleTFCMissingPadding judges the ESP frame-size *dispersion* (RFC 4303 §2.7): a uniform-size stream
+    # (RTP at a fixed payload) is not a TFC finding, a flow whose frame sizes track the application is.
     rule = RuleTFCMissingPadding()
     with SessionLocal() as db:
         session_row = db.get(IPsecSession, target_id)
         assert session_row is not None
-        vuln = rule.evaluate_session(session_row, packets)
-        assert vuln is not None
-        assert vuln.rule_id == "RULE-PROTO-006"
+        _, uniform_results = analyze_capture(STG.timed_pcap(STG.build_voip_traffic(count=40)))
+        assert rule.evaluate_session(session_row, uniform_results) is None
 
     # Test REST API GET /api/metadata-exposure/session/{session_id}
     resp = client.get(f"/api/metadata-exposure/session/{target_id}")
@@ -327,6 +329,19 @@ def test_requirement_8_metadata_exposure_assessment_and_api(client: TestClient) 
     sum_resp = client.get("/api/metadata-exposure/summary")
     assert sum_resp.status_code == 200
     assert sum_resp.json()["total_assessed"] >= 1
+
+    # A web flow (many distinct frame sizes) is where the TFC rule fires. Loaded last: uploading replaces
+    # the active capture that the API assertions above evaluate against.
+    web = generate_capture("PROFILE-01-TUNNEL-AES256GCM-PFS-IPV4", seed=8, duration=20.0, traffic_type="WEB_BROWSING", include_ike=False)
+    client.post("/api/packets/upload", files={"file": (web.filename, web.pcap_bytes, "application/octet-stream")})
+    client.post("/api/sessions/discover")
+    with SessionLocal() as db:
+        web_session = db.scalars(select(IPsecSession).where(IPsecSession.capture_id == packet_service.capture_id)).first()
+        assert web_session is not None
+        vuln = rule.evaluate_session(web_session, packet_service.all_packets())
+        assert vuln is not None
+        assert vuln.rule_id == "RULE-PROTO-006"
+        assert vuln.evidence_items[0].evidence_key == "esp_frame_size_dispersion"
 
 
 # ==============================================================================

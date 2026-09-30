@@ -180,8 +180,8 @@ class TestCoreSystemEndpoints:
         assert data.get("backend_status").lower() == "operational"
         assert data.get("database_status") in {"CONNECTED", "CONNECTED (UNSEEDED)"}
         assert data.get("application_mode") == "STANDALONE"
-        assert data.get("total_layers") == 14
-        assert len(data.get("architecture_layers", [])) == 14
+        assert data.get("total_layers") == 10
+        assert len(data.get("architecture_layers", [])) == 10
 
     def test_environment_status_endpoint(self, client: TestClient) -> None:
         """Verify GET /api/environment/status contract."""

@@ -1,324 +1,158 @@
-"""Train and evaluate supervised multi-class model for encrypted ESP traffic classification.
+"""Train and evaluate the supervised encrypted-ESP traffic classifier.
 
 SIH Problem Statement: SIH 26160 — NTRO
-Task: Predict type of traffic inside encrypted ESP/IPsec without payload inspection,
-using observable non-payload statistical flow and session features.
+Task: Predict the type of traffic inside encrypted ESP/IPsec without payload inspection,
+using observable non-payload flow features.
 
-Supported Classes:
-1. VOIP: Voice over IP (RTP/SIP), small isochronous ~20ms frames, low jitter, symmetric ratio, high MOS.
-2. WHATSAPP: Instant messaging, bursty chat clusters, presence keepalives, low pps, high arrival variance.
-3. EMAIL: SMTP/IMAP/POP3, handshake followed by unidirectional bulk MIME data transfer, bimodal packet sizes.
-4. WEB_BROWSING: Interactive HTTP/HTTPS browsing, multimodal sizing, moderate downlink asymmetry.
-5. ICMP: Diagnostic ping flows, strict 1.0s periodic cadence, uniform small packets, 1:1 symmetry.
-6. VIDEO_STREAMING: Adaptive bitrate streaming (HLS/DASH), periodic chunk download bursts, high MTU ratio, high bps.
-7. OTHER: Unclassified / generic background encrypted TCP/UDP VPN tunnel sessions.
+Pipeline (no train/serve skew):
+    software testbed capture (real ESP framing + encryption)
+      → Layer 03 packet decoder
+      → FlowFeatures.from_packets (the exact inference function)
+      → RandomForest
+
+Reported metrics are on a held-out test split (70/15/15 stratified) plus 5-fold
+cross-validation on the training portion, and additionally on a *held-out cipher
+configuration* (profiles never seen in training) so the number is not a memorised
+generator. The dataset is synthetic application traffic inside real IPsec framing; the
+README and the metrics file say so explicitly.
+
+Usage:
+    python -m app.layers.layer08_ai_ml.train_traffic_classifier --samples-per-class 200 --workers 4
 """
 
 from __future__ import annotations
 
+import argparse
 import json
 import logging
+import time
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List
+
 import joblib
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, classification_report, f1_score
-from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, f1_score
+from sklearn.model_selection import StratifiedKFold, cross_val_score, train_test_split
 
-logging.basicConfig(level=logging.INFO)
+from app.layers.layer08_ai_ml.dataset_builder import DATASET_VERSION, TRAINING_PROFILES, generate_dataset, load_dataset
+from app.layers.layer08_ai_ml.traffic_classifier import FEATURE_NAMES, FEATURE_VECTOR_VERSION, TARGET_CLASSES
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
-FEATURE_NAMES = [
-    "packet_count",
-    "byte_count",
-    "duration",
-    "mean_iat",
-    "iat_cv",
-    "small_packet_ratio",
-    "mtu_packet_ratio",
-    "inbound_outbound_byte_ratio",
-    "packets_per_second",
-    "bytes_per_second",
-    "chunk_burst_periodicity",
-    "mos_score_estimate",
-    "direction_asymmetry",
-]
-
-TARGET_CLASSES = [
-    "VOIP",
-    "WHATSAPP",
-    "EMAIL",
-    "WEB_BROWSING",
-    "ICMP",
-    "VIDEO_STREAMING",
-    "OTHER",
-]
-
-
-def generate_synthetic_flow_dataset(
-    samples_per_class: int = 200,
-    random_seed: int = 42,
-) -> Tuple[np.ndarray, np.ndarray, List[Dict[str, Any]]]:
-    """Generate statistically faithful non-payload flow features for encrypted ESP traffic."""
-    np.random.seed(random_seed)
-    x_records: List[List[float]] = []
-    y_labels: List[str] = []
-    raw_dataset: List[Dict[str, Any]] = []
-
-    for label in TARGET_CLASSES:
-        for i in range(samples_per_class):
-            if label == "VOIP":
-                # Isochronous ~20ms frames (G.711/G.729), 50 packets/s, low jitter (CV < 0.35)
-                # Small packets (60-160B) ratio > 0.70, MTU ratio = 0, symmetric ratio ~ 1.0, MOS 3.8-4.4
-                duration = np.random.uniform(10.0, 120.0)
-                mean_iat = np.random.normal(0.020, 0.003)
-                mean_iat = max(0.012, min(0.035, mean_iat))
-                iat_cv = np.random.uniform(0.05, 0.30)
-                pps = 1.0 / mean_iat
-                packet_count = int(duration * pps)
-                small_ratio = np.random.uniform(0.75, 0.98)
-                mtu_ratio = 0.0
-                io_ratio = np.random.uniform(0.85, 1.18)
-                bps = pps * np.random.uniform(120.0, 200.0)
-                byte_count = int(bps * duration)
-                periodicity = 0.0
-                mos = np.random.uniform(3.8, 4.4)
-
-            elif label == "WHATSAPP":
-                # Bursty messaging, low pps, long duration, high IAT variance (CV > 0.85)
-                # Mostly small/medium frames, MTU ratio < 0.15, idle gaps
-                duration = np.random.uniform(15.0, 180.0)
-                mean_iat = np.random.uniform(0.2, 2.5)
-                iat_cv = np.random.uniform(0.9, 2.5)
-                pps = np.random.uniform(0.5, 6.0)
-                packet_count = max(10, int(duration * pps))
-                small_ratio = np.random.uniform(0.60, 1.0)
-                mtu_ratio = np.random.uniform(0.0, 0.12)
-                io_ratio = np.random.uniform(0.3, 3.0)
-                bps = np.random.uniform(500.0, 8000.0)
-                byte_count = int(bps * duration)
-                periodicity = 0.0
-                mos = 0.0
-
-            elif label == "EMAIL":
-                # Bimodal: initial command handshake (small) + bulk MIME transfer (MTU)
-                duration = np.random.uniform(2.0, 30.0)
-                mean_iat = np.random.uniform(0.01, 0.15)
-                iat_cv = np.random.uniform(0.4, 1.2)
-                small_ratio = np.random.uniform(0.15, 0.40)
-                mtu_ratio = np.random.uniform(0.40, 0.80)
-                io_ratio = np.random.choice([np.random.uniform(0.05, 0.35), np.random.uniform(2.5, 12.0)])
-                pps = np.random.uniform(15.0, 120.0)
-                packet_count = max(15, int(duration * pps))
-                bps = np.random.uniform(25000.0, 350000.0)
-                byte_count = int(bps * duration)
-                periodicity = 0.0
-                mos = 0.0
-
-            elif label == "WEB_BROWSING":
-                # Interactive browsing: request-response bursts, multimodal sizes, moderate downlink asymmetry
-                duration = np.random.uniform(3.0, 60.0)
-                mean_iat = np.random.uniform(0.03, 0.30)
-                iat_cv = np.random.uniform(0.5, 1.6)
-                small_ratio = np.random.uniform(0.20, 0.55)
-                mtu_ratio = np.random.uniform(0.10, 0.40)
-                io_ratio = np.random.uniform(1.8, 7.5)  # downlink heavy
-                pps = np.random.uniform(10.0, 80.0)
-                packet_count = max(20, int(duration * pps))
-                bps = np.random.uniform(15000.0, 150000.0)
-                byte_count = int(bps * duration)
-                periodicity = 0.0
-                mos = 0.0
-
-            elif label == "ICMP":
-                # Diagnostic echo ping: exactly ~1.0s periodic cadence, uniform small packets, 1:1 symmetry
-                duration = np.random.uniform(5.0, 60.0)
-                mean_iat = np.random.normal(1.0, 0.03)
-                mean_iat = max(0.85, min(1.15, mean_iat))
-                iat_cv = np.random.uniform(0.01, 0.18)
-                small_ratio = 1.0
-                mtu_ratio = 0.0
-                io_ratio = np.random.uniform(0.95, 1.05)
-                pps = 1.0 / mean_iat
-                packet_count = max(4, int(duration * pps))
-                bps = pps * 84.0  # 84 bytes standard ping
-                byte_count = int(bps * duration)
-                periodicity = 0.0
-                mos = 0.0
-
-            elif label == "VIDEO_STREAMING":
-                # HLS/DASH chunk downloads: periodic chunk bursts every 2-6s, very high downlink asymmetry, high MTU
-                duration = np.random.uniform(20.0, 180.0)
-                mean_iat = np.random.uniform(0.005, 0.05)
-                iat_cv = np.random.uniform(1.2, 3.2)  # chunk pauses create high CV
-                small_ratio = np.random.uniform(0.02, 0.15)
-                mtu_ratio = np.random.uniform(0.65, 0.95)
-                io_ratio = np.random.uniform(5.0, 35.0)  # overwhelming downlink
-                pps = np.random.uniform(40.0, 250.0)
-                packet_count = max(50, int(duration * pps))
-                bps = np.random.uniform(150000.0, 1200000.0)  # high bitrate
-                byte_count = int(bps * duration)
-                periodicity = np.random.uniform(1.8, 6.0)  # chunk interval
-                mos = 0.0
-
-            else:  # OTHER
-                # Generic unclassified VPN flows
-                duration = np.random.uniform(2.0, 90.0)
-                mean_iat = np.random.uniform(0.01, 0.8)
-                iat_cv = np.random.uniform(0.4, 1.8)
-                small_ratio = np.random.uniform(0.1, 0.7)
-                mtu_ratio = np.random.uniform(0.05, 0.5)
-                io_ratio = np.random.uniform(0.2, 5.0)
-                pps = np.random.uniform(2.0, 100.0)
-                packet_count = max(10, int(duration * pps))
-                bps = np.random.uniform(2000.0, 100000.0)
-                byte_count = int(bps * duration)
-                periodicity = 0.0
-                mos = 0.0
-
-            direction_asymmetry = abs(io_ratio - 1.0) / (io_ratio + 1.0)
-
-            feat = [
-                float(packet_count),
-                float(byte_count),
-                float(duration),
-                float(mean_iat),
-                float(iat_cv),
-                float(small_ratio),
-                float(mtu_ratio),
-                float(io_ratio),
-                float(pps),
-                float(bps),
-                float(periodicity),
-                float(mos),
-                float(direction_asymmetry),
-            ]
-            x_records.append(feat)
-            y_labels.append(label)
-
-            raw_dataset.append({
-                "sample_id": f"FLOW-{label}-{i+1:04d}",
-                "traffic_type": label,
-                "features": {k: float(v) for k, v in zip(FEATURE_NAMES, feat)},
-                "ipsec_context": {
-                    "encapsulation": "ESP",
-                    "mode": str(np.random.choice(["TUNNEL", "TRANSPORT"])),
-                    "encryption": str(np.random.choice(["AES-256-GCM", "AES-128-GCM", "AES-256-CBC"])),
-                    "dh_group": int(np.random.choice([14, 19, 20, 21])),
-                },
-            })
-
-    return np.array(x_records), np.array(y_labels), raw_dataset
+MODEL_VERSION = "2.0"
+HELD_OUT_PROFILES = ["PROFILE-07-TUNNEL-DOWNGRADE-IPV4", "PROFILE-10-TUNNEL-TFC-PADDED-IPV4"]
 
 
 def train_and_export_traffic_model(
-    output_dir: Path,
+    data_dir: Path,
     samples_per_class: int = 200,
+    workers: int = 1,
+    regenerate: bool = True,
+    base_seed: int = 20240,
 ) -> Dict[str, Any]:
-    """Train RandomForest multi-class traffic classifier, evaluate, and save artifacts."""
-    output_dir.mkdir(parents=True, exist_ok=True)
-    models_dir = output_dir / "models"
+    data_dir.mkdir(parents=True, exist_ok=True)
+    models_dir = data_dir / "models"
     models_dir.mkdir(parents=True, exist_ok=True)
+    dataset_dir = data_dir / "datasets"
+    csv_path = dataset_dir / f"esp_flow_features_v{DATASET_VERSION}.csv"
 
-    logger.info("Generating stratified flow dataset (%d per class)...", samples_per_class)
-    X, y, raw_data = generate_synthetic_flow_dataset(samples_per_class=samples_per_class, random_seed=42)
+    train_profiles = [p for p in TRAINING_PROFILES if p not in HELD_OUT_PROFILES]
+    t0 = time.time()
+    if regenerate or not csv_path.exists():
+        logger.info("Generating %d captures per class through the real pipeline (%d workers)…", samples_per_class, workers)
+        generate_dataset(samples_per_class=samples_per_class, base_seed=base_seed, profiles=train_profiles, out_dir=dataset_dir,
+                         sample_pcaps_per_class=3, workers=workers,
+                         progress=lambda i, n: logger.info("  %d/%d flows", i, n) if i % 100 == 0 else None)
+    X_list, y_list, meta = load_dataset(csv_path)
+    X, y = np.array(X_list), np.array(y_list)
+    logger.info("Dataset: %d flows, %d features, generated in %.0fs", len(X), X.shape[1], time.time() - t0)
 
-    # 70% Train, 15% Validation, 15% Test
-    X_train_val, X_test, y_train_val, y_test = train_test_split(
-        X, y, test_size=0.15, stratify=y, random_state=42
-    )
-    val_ratio_of_train_val = 0.15 / 0.85
-    X_train, X_val, y_train, y_val = train_test_split(
-        X_train_val, y_train_val, test_size=val_ratio_of_train_val, stratify=y_train_val, random_state=42
-    )
+    X_trval, X_test, y_trval, y_test = train_test_split(X, y, test_size=0.15, stratify=y, random_state=42)
+    X_train, X_val, y_train, y_val = train_test_split(X_trval, y_trval, test_size=0.15 / 0.85, stratify=y_trval, random_state=42)
 
-    logger.info("Train samples: %d, Val samples: %d, Test samples: %d", len(X_train), len(X_val), len(X_test))
-
-    # Train Random Forest
-    clf = RandomForestClassifier(
-        n_estimators=100,
-        max_depth=12,
-        min_samples_split=4,
-        random_state=42,
-        class_weight="balanced",
-    )
+    clf = RandomForestClassifier(n_estimators=300, max_depth=16, min_samples_leaf=2, class_weight="balanced", random_state=42, n_jobs=-1)
     clf.fit(X_train, y_train)
 
-    # Validation evaluation
-    val_preds = clf.predict(X_val)
-    val_acc = float(accuracy_score(y_val, val_preds))
-    val_f1 = float(f1_score(y_val, val_preds, average="macro"))
+    val_pred = clf.predict(X_val)
+    test_pred = clf.predict(X_test)
+    val_acc, val_f1 = float(accuracy_score(y_val, val_pred)), float(f1_score(y_val, val_pred, average="macro"))
+    test_acc, test_f1 = float(accuracy_score(y_test, test_pred)), float(f1_score(y_test, test_pred, average="macro"))
+    report = classification_report(y_test, test_pred, output_dict=True, zero_division=0)
+    cm = confusion_matrix(y_test, test_pred, labels=TARGET_CLASSES)
+    cv = cross_val_score(RandomForestClassifier(n_estimators=200, max_depth=16, min_samples_leaf=2, class_weight="balanced", random_state=7, n_jobs=-1),
+                         X_trval, y_trval, cv=StratifiedKFold(5, shuffle=True, random_state=42), scoring="f1_macro")
 
-    # Test evaluation
-    test_preds = clf.predict(X_test)
-    test_acc = float(accuracy_score(y_test, test_preds))
-    test_f1 = float(f1_score(y_test, test_preds, average="macro"))
-    test_report = classification_report(y_test, test_preds, output_dict=True)
+    # Held-out cipher configuration: profiles the model never saw during training.
+    logger.info("Evaluating on held-out configurations %s…", HELD_OUT_PROFILES)
+    held = generate_dataset(samples_per_class=max(10, samples_per_class // 10), base_seed=base_seed + 777, profiles=HELD_OUT_PROFILES, out_dir=None, workers=workers)
+    Xh = np.array([[r.features[n] for n in FEATURE_NAMES] for r in held])
+    yh = np.array([r.traffic_type for r in held])
+    held_pred = clf.predict(Xh)
+    held_acc, held_f1 = float(accuracy_score(yh, held_pred)), float(f1_score(yh, held_pred, average="macro"))
+    held_by_profile: Dict[str, Dict[str, float]] = {}
+    for pid in HELD_OUT_PROFILES:
+        idx = [i for i, r in enumerate(held) if r.profile_id == pid]
+        if idx:
+            held_by_profile[pid] = {"accuracy": round(float(accuracy_score(yh[idx], held_pred[idx])), 4), "samples": len(idx)}
 
-    # Feature importances
-    feature_importances = {
-        name: round(float(imp), 4)
-        for name, imp in zip(FEATURE_NAMES, clf.feature_importances_)
+    # Final model on train+val for deployment; metrics above remain those of the held-out evaluation.
+    final = RandomForestClassifier(n_estimators=300, max_depth=16, min_samples_leaf=2, class_weight="balanced", random_state=42, n_jobs=-1)
+    final.fit(X_trval, y_trval)
+    importances = dict(sorted({n: round(float(v), 4) for n, v in zip(FEATURE_NAMES, final.feature_importances_)}.items(), key=lambda kv: kv[1], reverse=True))
+
+    t_inf = time.time()
+    for _ in range(200):
+        final.predict_proba(X_test[:1])
+    latency_ms = (time.time() - t_inf) / 200 * 1000.0
+
+    bundle = {
+        "model": final, "feature_names": FEATURE_NAMES, "version": MODEL_VERSION, "feature_vector_version": FEATURE_VECTOR_VERSION,
+        "classes": list(final.classes_), "trained_at": datetime.now(timezone.utc).isoformat(), "dataset_version": DATASET_VERSION,
     }
-    sorted_importances = dict(sorted(feature_importances.items(), key=lambda item: item[1], reverse=True))
-
-    logger.info("Test Accuracy: %.4f, Macro F1: %.4f", test_acc, test_f1)
-
-    # Model artifact path
     model_path = models_dir / "traffic_classifier_supervised.joblib"
-    joblib.dump(clf, model_path)
-    logger.info("Saved model artifact to %s", model_path)
+    joblib.dump(bundle, model_path)
 
-    # Metrics and dataset metadata
-    metrics_data = {
+    metrics: Dict[str, Any] = {
         "problem_statement": "SIH 26160 — NTRO",
         "task": "AI-Based Protocol & Traffic Classification (Encrypted ESP)",
-        "model_type": "RandomForestClassifier",
-        "n_estimators": 100,
-        "max_depth": 12,
-        "total_dataset_size": len(X),
-        "split": {
-            "train_samples": len(X_train),
-            "val_samples": len(X_val),
-            "test_samples": len(X_test),
-            "train_ratio": 0.70,
-            "val_ratio": 0.15,
-            "test_ratio": 0.15,
+        "model_type": "RandomForestClassifier", "model_version": MODEL_VERSION, "n_estimators": 300, "max_depth": 16,
+        "feature_vector_version": FEATURE_VECTOR_VERSION, "features": FEATURE_NAMES, "classes": TARGET_CLASSES,
+        "dataset": {
+            "version": DATASET_VERSION, "total_flows": int(len(X)), "training_profiles": train_profiles, "held_out_profiles": HELD_OUT_PROFILES,
+            "provenance": "Synthetic application traffic (statistical models) inside real RFC 4303 ESP framing with real encryption; features extracted through the deployed Layer 03 → Layer 07 pipeline. No real user traffic.",
+            "split": {"train": int(len(X_train)), "val": int(len(X_val)), "test": int(len(X_test)), "ratios": [0.70, 0.15, 0.15]},
         },
-        "classes": TARGET_CLASSES,
-        "features": FEATURE_NAMES,
-        "validation_accuracy": round(val_acc, 4),
-        "validation_macro_f1": round(val_f1, 4),
-        "test_accuracy": round(test_acc, 4),
-        "test_macro_f1": round(test_f1, 4),
-        "feature_importances": sorted_importances,
-        "per_class_metrics": {
-            cls: {
-                "precision": round(test_report[cls]["precision"], 4),
-                "recall": round(test_report[cls]["recall"], 4),
-                "f1_score": round(test_report[cls]["f1-score"], 4),
-                "support": int(test_report[cls]["support"]),
-            }
-            for cls in TARGET_CLASSES
-            if cls in test_report
-        },
+        "validation_accuracy": round(val_acc, 4), "validation_macro_f1": round(val_f1, 4),
+        "test_accuracy": round(test_acc, 4), "test_macro_f1": round(test_f1, 4),
+        "cv5_macro_f1_mean": round(float(cv.mean()), 4), "cv5_macro_f1_std": round(float(cv.std()), 4),
+        "held_out_configuration": {"accuracy": round(held_acc, 4), "macro_f1": round(held_f1, 4), "samples": int(len(held)), "by_profile": held_by_profile,
+                                   "note": "Profiles never seen in training (downgrade suite; TFC-padded frames). TFC padding is designed to defeat size-based classification, so lower accuracy there is expected and honest."},
+        "inference_latency_ms": round(latency_ms, 3),
+        "feature_importances": importances,
+        "per_class_metrics": {c: {"precision": round(report[c]["precision"], 4), "recall": round(report[c]["recall"], 4), "f1_score": round(report[c]["f1-score"], 4), "support": int(report[c]["support"])} for c in TARGET_CLASSES if c in report},
+        "confusion_matrix": {"labels": TARGET_CLASSES, "matrix": cm.tolist()},
+        "trained_at": bundle["trained_at"],
     }
+    (models_dir / "traffic_metrics.json").write_text(json.dumps(metrics, indent=2), encoding="utf-8")
+    logger.info("Test accuracy %.4f, macro-F1 %.4f; CV5 F1 %.4f±%.4f; held-out config accuracy %.4f", test_acc, test_f1, cv.mean(), cv.std(), held_acc)
+    logger.info("Saved model bundle to %s", model_path)
+    return metrics
 
-    metrics_path = models_dir / "traffic_metrics.json"
-    with open(metrics_path, "w", encoding="utf-8") as f:
-        json.dump(metrics_data, f, indent=2)
-    logger.info("Saved metrics to %s", metrics_path)
 
-    # Export dataset snapshot for reproducibility
-    dataset_path = output_dir / "traffic_dataset_1400.json"
-    with open(dataset_path, "w", encoding="utf-8") as f:
-        json.dump({"metadata": metrics_data, "samples": raw_data}, f, indent=2)
-    logger.info("Saved dataset snapshot to %s", dataset_path)
-
-    return metrics_data
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--samples-per-class", type=int, default=200)
+    parser.add_argument("--workers", type=int, default=1)
+    parser.add_argument("--no-regenerate", action="store_true", help="Reuse the existing dataset CSV")
+    parser.add_argument("--seed", type=int, default=20240)
+    parser.add_argument("--data-dir", type=Path, default=Path(__file__).resolve().parent.parent.parent.parent / "data")
+    args = parser.parse_args()
+    train_and_export_traffic_model(args.data_dir, samples_per_class=args.samples_per_class, workers=args.workers,
+                                   regenerate=not args.no_regenerate, base_seed=args.seed)
 
 
 if __name__ == "__main__":
-    base_data_dir = Path(__file__).resolve().parent.parent.parent.parent / "data"
-    train_and_export_traffic_model(base_data_dir, samples_per_class=200)
+    main()

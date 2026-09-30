@@ -179,7 +179,7 @@ export const TrafficAnalysisPage: React.FC = () => {
           </div>
           <h1 className="text-2xl font-bold text-slate-100 flex items-center gap-3">
             <Sparkles className="w-7 h-7 text-sky-400" />
-            AI-Based Protocol &amp; Traffic Classification
+            AI Traffic Classification &amp; Protocol Identification
           </h1>
           <p className="text-sm text-slate-400 mt-1 max-w-3xl">
             Supervised machine learning traffic classifier predicting encapsulated payload categories
@@ -366,7 +366,7 @@ export const TrafficAnalysisPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto">
-          {['ALL', 'VOIP', 'WHATSAPP', 'EMAIL', 'VIDEO_STREAMING', 'GENERIC'].map((t) => (
+          {['ALL', 'VOIP', 'WHATSAPP', 'EMAIL', 'WEB_BROWSING', 'VIDEO_STREAMING', 'ICMP', 'OTHER'].map((t) => (
             <button
               key={t}
               onClick={() => setSelectedType(t)}

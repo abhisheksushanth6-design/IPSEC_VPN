@@ -89,4 +89,5 @@ export type * from './protocolAnalysis';
 export type * from './sessionFingerprint';
 export type * from './securityAssessment';
 export type * from './aiAnalysis';
+export type * from './securityPosture';
 

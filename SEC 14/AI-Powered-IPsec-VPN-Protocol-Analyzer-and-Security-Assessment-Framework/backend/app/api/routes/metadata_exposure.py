@@ -71,6 +71,16 @@ def trigger_exposure_assessment(capture_id: str, db: Session = Depends(get_db)) 
     return [_row_to_schema(r) for r in rows]
 
 
+@router.get("/evaluate/{capture_id}", response_model=List[MetadataExposureSchema])
+def get_or_evaluate_exposure(capture_id: str, db: Session = Depends(get_db)) -> List[MetadataExposureSchema]:
+    """Read-only alias: returns stored assessments for a capture (evaluating once if none exist).
+
+    Evaluation is triggered with ``POST /assess/{capture_id}``; ``POST`` on this read-only path is rejected with 405.
+    """
+    svc = MetadataExposureService(db)
+    return [_row_to_schema(r) for r in svc.get_by_capture(capture_id)]
+
+
 @router.get("/session/{session_id}", response_model=MetadataExposureSchema)
 def get_session_exposure(session_id: str, db: Session = Depends(get_db)) -> MetadataExposureSchema:
     """Retrieve metadata exposure assessment for a specific session."""

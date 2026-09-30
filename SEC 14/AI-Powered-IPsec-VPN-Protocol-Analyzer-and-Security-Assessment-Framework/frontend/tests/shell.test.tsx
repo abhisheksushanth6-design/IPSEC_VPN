@@ -31,7 +31,7 @@ describe('application shell', () => {
   it('marks the current route as active', async () => {
     renderAppAt('/vulnerabilities');
     const nav = await screen.findByRole('navigation', { name: /main navigation/i });
-    const link = within(nav).getByRole('link', { name: 'Vulnerabilities' });
+    const link = within(nav).getByRole('link', { name: 'Security Assessment' });
     expect(link).toHaveAttribute('aria-current', 'page');
   });
 

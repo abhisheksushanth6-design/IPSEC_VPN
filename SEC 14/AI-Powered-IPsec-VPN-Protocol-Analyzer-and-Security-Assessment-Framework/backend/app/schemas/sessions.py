@@ -34,6 +34,35 @@ class IKEInfoSchema(_Model):
     payload_types: list[str]
     packet_count: int
     nat_traversal: bool
+    # Observed negotiation (None / UNAVAILABLE when the cleartext SA payload is not in the capture)
+    crypto_provenance: str = "UNAVAILABLE"
+    cipher: Optional[str] = None
+    key_length: Optional[int] = None
+    integrity: Optional[str] = None
+    prf: Optional[str] = None
+    dh_group: Optional[str] = None
+    dh_group_number: Optional[int] = None
+    esn: Optional[str] = None
+    aead: Optional[bool] = None
+    auth_method: Optional[str] = None
+    lifetime_seconds: Optional[int] = None
+    lifetime_kilobytes: Optional[int] = None
+    security_bits: Optional[int] = None
+    selection_basis: str = "NONE"
+    selection_confirmed: bool = False
+    selected_proposal: Optional[str] = None
+    offered_proposals: list[str] = []
+    downgrade_detected: Optional[bool] = None
+    downgrade_reason: Optional[str] = None
+    weak_offered: list[str] = []
+    ke_dh_groups: list[int] = []
+    cleartext_identity_observed: bool = False
+    notify_types: list[str] = []
+    pfs_enabled: Optional[bool] = None
+    pfs_provenance: str = "UNAVAILABLE"
+    pfs_confidence: float = 0.0
+    pfs_evidence: list[str] = []
+    negotiation_evidence: list[str] = []
 
 
 class SPIInfoSchema(_Model):
@@ -48,6 +77,8 @@ class SPIInfoSchema(_Model):
 class DataPlaneInfoSchema(_Model):
     spis: list[SPIInfoSchema]
     packet_count: int
+    replay: Optional[dict] = None
+    inferred: Optional[dict] = None
 
 
 class ActivityPointSchema(_Model):

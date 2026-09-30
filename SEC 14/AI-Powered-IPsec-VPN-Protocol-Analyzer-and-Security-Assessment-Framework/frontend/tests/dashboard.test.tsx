@@ -14,19 +14,15 @@ const CARD_LABELS = [
   'Active VPN Sessions',
   'Active Security Associations',
   'Packets Analyzed',
-  'AI Anomalies',
-  'Security Drift Events',
-  'Critical Vulnerabilities',
-  'Capture Status',
 ];
 
 const CHART_TITLES = [
   'Traffic Timeline',
   'Risk Trend',
   'Protocol Distribution',
-  'AI Anomalies Over Time',
-  'Vulnerability Severity',
-  'SA Lifecycle Activity',
+  'AI Traffic Classification',
+  'Security Assessment Findings',
+  'SA & Protocol State Activity',
 ];
 
 describe('overview dashboard', () => {
@@ -34,7 +30,7 @@ describe('overview dashboard', () => {
     mockBackendOnline();
   });
 
-  it('renders all eight KPI cards', async () => {
+  it('renders all four KPI cards', async () => {
     renderAppAt('/overview');
     await screen.findAllByText('FOUNDATION ONLINE');
     for (const label of CARD_LABELS) {
@@ -95,7 +91,7 @@ describe('overview dashboard', () => {
     renderAppAt('/overview');
     const nav = await screen.findByRole('navigation', { name: /quick navigation/i });
     expect(within(nav).getByRole('link', { name: /reports/i })).toHaveAttribute('href', '/reports');
-    expect(within(nav).getAllByRole('link')).toHaveLength(7);
+    expect(within(nav).getAllByRole('link')).toHaveLength(8);
   });
 
   it('never makes an unearned security claim', async () => {
@@ -210,10 +206,10 @@ describe('Section 13 Web Dashboard widgets and live posture', () => {
     renderAppAt('/overview');
     await screen.findAllByText('FOUNDATION ONLINE');
 
-    expect(screen.getByRole('article', { name: 'Security Vulnerabilities' })).toBeInTheDocument();
-    expect(screen.getByRole('article', { name: 'AI / ML Anomalies' })).toBeInTheDocument();
+    expect(screen.getByRole('article', { name: 'Security Assessment Findings' })).toBeInTheDocument();
+    expect(screen.getByRole('article', { name: 'Session Fingerprints' })).toBeInTheDocument();
     expect(screen.getByRole('article', { name: 'AI Traffic Classification' })).toBeInTheDocument();
-    expect(screen.getByRole('article', { name: 'SA Lifecycles' })).toBeInTheDocument();
+    expect(screen.getByRole('article', { name: 'Metadata Exposure' })).toBeInTheDocument();
   });
 
   it('renders recent session activity table and protocol posture with clean empty states', async () => {

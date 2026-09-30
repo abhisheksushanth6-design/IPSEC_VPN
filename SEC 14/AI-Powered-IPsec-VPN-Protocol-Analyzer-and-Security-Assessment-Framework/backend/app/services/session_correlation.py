@@ -26,7 +26,10 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Iterable, Literal, Optional
 
+from app.layers.layer03_protocol_analysis.crypto_negotiation import extract_negotiated_crypto
 from app.layers.layer03_protocol_analysis.models import PacketAnalysisResult
+from app.layers.layer04_sa_lifecycle.replay_analysis import analyze_replay
+from app.layers.layer08_ai_ml.crypto_inference import icv_length_for, infer_esp_crypto, infer_pfs, infer_transport_mode
 
 INACTIVITY_GAP_SECONDS = 300.0
 ACTIVITY_BUCKETS = 24
@@ -58,6 +61,38 @@ class IKEInfo:
     payload_types: list[str]
     packet_count: int
     nat_traversal: bool
+    # Negotiated IKE SA suite, read from cleartext SA payloads (provenance OBSERVED) or
+    # left None with provenance UNAVAILABLE. These keys are what the Layer 08 rule
+    # engine reads (``ike_info["cipher"]`` etc.), so the rules see real negotiation data.
+    crypto_provenance: str = "UNAVAILABLE"
+    cipher: Optional[str] = None
+    key_length: Optional[int] = None
+    integrity: Optional[str] = None
+    prf: Optional[str] = None
+    dh_group: Optional[str] = None
+    dh_group_number: Optional[int] = None
+    esn: Optional[str] = None
+    aead: Optional[bool] = None
+    auth_method: Optional[str] = None
+    lifetime_seconds: Optional[int] = None
+    lifetime_kilobytes: Optional[int] = None
+    security_bits: Optional[int] = None
+    selection_basis: str = "NONE"
+    selection_confirmed: bool = False
+    selected_proposal: Optional[str] = None
+    offered_proposals: list[str] = field(default_factory=list)
+    downgrade_detected: Optional[bool] = None
+    downgrade_reason: Optional[str] = None
+    weak_offered: list[str] = field(default_factory=list)
+    ke_dh_groups: list[int] = field(default_factory=list)
+    cleartext_identity_observed: bool = False
+    notify_types: list[str] = field(default_factory=list)
+    # PFS is inferred from CREATE_CHILD_SA message sizes (provenance INFERRED) or UNKNOWN.
+    pfs_enabled: Optional[bool] = None
+    pfs_provenance: str = "UNAVAILABLE"
+    pfs_confidence: float = 0.0
+    pfs_evidence: list[str] = field(default_factory=list)
+    negotiation_evidence: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -76,6 +111,11 @@ class SPIInfo:
 class DataPlaneInfo:
     spis: list[SPIInfo]
     packet_count: int
+    # Per-SPI sequence-number integrity (Layer 04 replay analysis) and, for ESP, the
+    # cipher-family framing inference (Layer 07). Both are dictionaries so the session
+    # record stays a plain JSON document.
+    replay: Optional[dict] = None
+    inferred: Optional[dict] = None
 
 
 @dataclass
@@ -193,6 +233,14 @@ def _build_session(
         or (p.ipsec and p.ipsec.ah and p.ipsec.ah.next_header in (1, 6, 17, 58))
         for p in members
     )
+    if not has_transport and esp_pkts and esp_info is not None and esp_info.inferred:
+        # ESP payload lengths betray the mode: frames shorter than any tunnel-mode packet, or bare TCP ACKs at
+        # the transport-mode ACK size (see crypto_inference). The negotiated ICV length sharpens the test.
+        icv = icv_length_for(ike_info.cipher, ike_info.integrity) if ike_info is not None and ike_info.crypto_provenance == "OBSERVED" else None
+        mode_inf = infer_transport_mode(esp_pkts, esp_info.inferred.get("framing_hypothesis"), icv_length=icv)
+        if mode_inf.mode == "TRANSPORT" and mode_inf.confidence >= 0.6:
+            has_transport = True
+            evidence.append(mode_inf.evidence[0])
     ipsec_mode = "TRANSPORT" if has_transport else "TUNNEL"
     ip_version = 6 if any(p.ip and p.ip.version == 6 for p in members) else 4
 
@@ -254,6 +302,9 @@ def _direction(members: list[PacketAnalysisResult], source: str, destination: st
 def _ike_info(ike_pkts: list[PacketAnalysisResult]) -> IKEInfo:
     layers = [p.ipsec.ike for p in ike_pkts if p.ipsec and p.ipsec.ike]
     versions = sorted({l.version for l in layers})
+    negotiated = extract_negotiated_crypto(ike_pkts)
+    pfs = infer_pfs(ike_pkts)
+    pfs_flag = {"ENABLED": True, "DISABLED": False}.get(pfs.status)
     return IKEInfo(
         version=versions[0] if len(versions) == 1 else ("/".join(versions) if versions else None),
         initiator_spis=_unique(l.initiator_spi for l in layers),
@@ -263,6 +314,34 @@ def _ike_info(ike_pkts: list[PacketAnalysisResult]) -> IKEInfo:
         payload_types=_unique(pl.name for l in layers for pl in l.payloads),
         packet_count=len(ike_pkts),
         nat_traversal=any(p.ipsec.nat_traversal for p in ike_pkts if p.ipsec),
+        crypto_provenance=negotiated.provenance,
+        cipher=negotiated.cipher,
+        key_length=negotiated.key_length,
+        integrity=negotiated.integrity,
+        prf=negotiated.prf,
+        dh_group=negotiated.dh_group,
+        dh_group_number=negotiated.dh_group_number,
+        esn=negotiated.esn,
+        aead=negotiated.aead,
+        auth_method=negotiated.auth_method,
+        lifetime_seconds=negotiated.lifetime_seconds,
+        lifetime_kilobytes=negotiated.lifetime_kilobytes,
+        security_bits=negotiated.security_bits,
+        selection_basis=negotiated.selection_basis,
+        selection_confirmed=negotiated.selection_confirmed,
+        selected_proposal=negotiated.selected_proposal.label if negotiated.selected_proposal else None,
+        offered_proposals=[s.label for s in negotiated.offered_proposals],
+        downgrade_detected=negotiated.downgrade.detected if negotiated.downgrade else None,
+        downgrade_reason=negotiated.downgrade.reason if negotiated.downgrade else None,
+        weak_offered=negotiated.weak_offered,
+        ke_dh_groups=negotiated.ke_dh_groups,
+        cleartext_identity_observed=negotiated.cleartext_identity_observed,
+        notify_types=negotiated.notify_types,
+        pfs_enabled=pfs_flag,
+        pfs_provenance=pfs.provenance,
+        pfs_confidence=pfs.confidence,
+        pfs_evidence=pfs.evidence,
+        negotiation_evidence=negotiated.evidence,
     )
 
 
@@ -285,7 +364,9 @@ def _dataplane_info(pkts: list[PacketAnalysisResult]) -> DataPlaneInfo:
             nat_traversal=any(g.ipsec.nat_traversal for g in group if g.ipsec),
         ))
     spis.sort(key=lambda s: s.spi)
-    return DataPlaneInfo(spis=spis, packet_count=len(pkts))
+    replay = analyze_replay(pkts).to_dict()
+    inferred = infer_esp_crypto(pkts).to_dict() if any(p.ipsec and p.ipsec.esp for p in pkts) else None
+    return DataPlaneInfo(spis=spis, packet_count=len(pkts), replay=replay, inferred=inferred)
 
 
 def _determine_state(ike_pkts, esp_pkts, ah_pkts) -> tuple[SessionState, list[str]]:

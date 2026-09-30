@@ -57,6 +57,9 @@ const ThreatMatrixPage = lazy(() =>
 const VulnerabilitiesPage = lazy(() =>
   import('@/pages/Vulnerabilities').then((m) => ({ default: m.VulnerabilitiesPage }))
 );
+const SecurityPosturePage = lazy(() =>
+  import('@/pages/SecurityPosture').then((m) => ({ default: m.SecurityPosturePage }))
+);
 import { RiskAssessmentPage } from '@/pages/RiskAssessment';
 const ReportsPage = lazy(() =>
   import('@/pages/Reports').then((m) => ({ default: m.ReportsPage }))
@@ -109,6 +112,7 @@ export default function App() {
                 <Route path="/ai-classification" element={<Navigate to="/traffic-analysis" replace />} />
                 <Route path="/metadata-exposure" element={<MetadataExposurePage />} />
                 <Route path="/threat-matrix" element={<ThreatMatrixPage />} />
+                <Route path="/security-posture" element={<SecurityPosturePage />} />
                 <Route path="/vulnerabilities" element={<VulnerabilitiesPage />} />
                 <Route path="/vulnerability-engine" element={<Navigate to="/vulnerabilities" replace />} />
                 <Route path="/security-rules" element={<Navigate to="/vulnerabilities" replace />} />

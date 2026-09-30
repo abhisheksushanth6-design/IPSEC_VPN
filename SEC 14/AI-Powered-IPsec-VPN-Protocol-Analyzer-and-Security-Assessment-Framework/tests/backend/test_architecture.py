@@ -52,8 +52,8 @@ def test_api_serves_the_locked_sequence(client) -> None:
     served = [(l["number"], l["name"]) for l in payload["architecture_layers"]]
     assert served == [(n, name) for n, name, _ in LOCKED_SEQUENCE]
     layer_map = {l["number"]: l["status"] for l in payload["architecture_layers"]}
-    assert layer_map[1] in ("READY", "WARNING", "ERROR", "NOT INITIALIZED")
-    assert layer_map[2] in ("READY", "CAPTURING", "ERROR", "NOT INITIALIZED")
+    assert layer_map[1] in ("READY", "WARNING", "PARTIALLY_OPERATIONAL", "ERROR", "NOT INITIALIZED")
+    assert layer_map[2] in ("READY", "CAPTURING", "PARTIALLY_OPERATIONAL", "ERROR", "NOT INITIALIZED")
     assert layer_map[3] in ("READY", "OPERATIONAL", "NOT INITIALIZED")
     assert layer_map[4] in ("READY", "OPERATIONAL", "NOT INITIALIZED")
     assert layer_map[5] in ("READY", "OPERATIONAL", "NOT INITIALIZED")

@@ -28,4 +28,5 @@ export { metadataExposureService } from './metadataExposureService';
 export { threatMatrixService } from './threatMatrixService';
 export { securityAssessmentService } from './securityAssessmentService';
 export { aiAnalysisService } from './aiAnalysisService';
+export { securityPostureService } from './securityPostureService';
 

@@ -1,0 +1,38 @@
+{
+  "aead": false,
+  "capture_id": "bc50eb533143359f2a5c4858ef86204c3ae52a1492828cfc4fe8dd586415660c",
+  "cipher_family": "AES-CBC",
+  "dh_group": 14,
+  "downgrade": false,
+  "duration_seconds": 25.8,
+  "encryption": "AES-128-CBC",
+  "generator": "software_testbed",
+  "ike": {},
+  "ike_exchange_mode": null,
+  "ike_included": false,
+  "ike_version": null,
+  "integrity": "HMAC-SHA2-256",
+  "ip_version": 4,
+  "ipsec_protocol": "ESP",
+  "key_length": 128,
+  "mode": "TRANSPORT",
+  "nat_traversal": false,
+  "note": "Application traffic is model-generated; IPsec framing and encryption are real (RFC 4303 / RFC 4106 / RFC 3602 / RFC 7296).",
+  "pfs_enabled": true,
+  "profile_id": "PROFILE-02-TRANSPORT-AES128CBC-PFS-IPV4",
+  "profile_name": "Host-to-Host Voice Tunnel (Transport, AES-128-CBC+HMAC, DH14, PFS, IPv4)",
+  "rekey_observed": false,
+  "seed": 1145822,
+  "spis": [
+    "0x731bb5a5",
+    "0x8fc6f046"
+  ],
+  "synthetic": true,
+  "tfc_padding": false,
+  "traffic_parameters": {
+    "message_bytes": 1624668,
+    "operation": "IMAP_FETCH"
+  },
+  "traffic_type": "EMAIL",
+  "weak_fallback_offer": false
+}

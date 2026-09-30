@@ -44,7 +44,7 @@ function mockSABackend(mode: 'empty' | 'ready' | 'active') {
 
 async function renderPage(route = '/sa-lifecycle') {
   renderAppAt(route);
-  await screen.findByRole('heading', { level: 1, name: /security state & sa lifecycle/i });
+  await screen.findByRole('heading', { level: 1, name: /sa & protocol state analysis/i });
 }
 
 describe('sa lifecycle — no packet data', () => {
@@ -95,14 +95,14 @@ describe('sa lifecycle — discovered', () => {
     await user.click(within(await screen.findByRole('table')).getByText(ike.id));
     const dialog = await screen.findByRole('dialog', { name: /sa details/i });
     expect(within(dialog).getByText('Current state').nextElementSibling).toHaveTextContent('TERMINATED');
-    const path = within(dialog).getByRole('figure', { name: /lifecycle path/i });
+    const path = within(dialog).getByRole('figure', { name: /protocol state path/i });
     expect(within(path).getByText('TERMINATED')).toHaveAttribute('aria-current', 'step');
     expect(within(dialog).getByText(/These are observations of protocol state, not a security assessment/)).toBeInTheDocument();
 
     await user.click(within(dialog).getByRole('tab', { name: /timeline/i }));
     const history = within(dialog).getByRole('list', { name: /state history/i });
     expect(within(history).getAllByRole('listitem').map((li) => li.textContent)).toEqual(expect.arrayContaining([expect.stringContaining('DETECTED'), expect.stringContaining('REKEYING'), expect.stringContaining('TERMINATED')]));
-    const timeline = within(dialog).getByRole('list', { name: /lifecycle timeline/i });
+    const timeline = within(dialog).getByRole('list', { name: /SA protocol state timeline/i });
     for (const ev of ['SA DETECTED', 'NEGOTIATION START', 'SA ESTABLISHED', 'IPSEC TRAFFIC OBSERVED', 'REKEY START', 'REKEY COMPLETE', 'DELETE OBSERVED']) expect(within(timeline).getByText(ev)).toBeInTheDocument();
     expect(within(timeline).getAllByText(/packet #\d+/).length).toBeGreaterThan(5);
   });

@@ -458,7 +458,7 @@ def test_full_14_layer_integration(client) -> None:
     # Layer 12: Backend & API (System Status)
     l12_res = client.get("/api/system/status")
     assert l12_res.status_code == 200
-    assert len(l12_res.json()["architecture_layers"]) == 14
+    assert len(l12_res.json()["architecture_layers"]) == 10
 
     # Layer 13: Web Dashboard Summary
     l13_res = client.get("/api/dashboard/summary")

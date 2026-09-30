@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import os
 import uuid
 from datetime import datetime, timezone
@@ -42,6 +43,8 @@ from app.models.vulnerability import (
 )
 from app.services.packet_service import packet_service
 from app.services.system_service import read_application_mode
+
+logger = logging.getLogger(__name__)
 
 
 def _utc_now() -> datetime:
@@ -602,12 +605,22 @@ class ReportDataCollector:
         sih_security_assessment = None
         try:
             from app.layers.layer09_vulnerability_engine.security_assessment import SecurityAssessmentEngine
-            target_sess = session_row or db.scalars(select(IPsecSession)).first()
+            target_sess = db.get(IPsecSession, request.session_id) if request.session_id else None
+            if target_sess is None:
+                # Capture-level reports assess the busiest session of the capture that is currently loaded;
+                # sessions of earlier captures no longer have packets behind them.
+                active_capture = packet_service.capture_id
+                if active_capture:
+                    target_sess = db.scalars(
+                        select(IPsecSession).where(IPsecSession.capture_id == active_capture).order_by(IPsecSession.packet_count.desc())
+                    ).first()
+                if target_sess is None:
+                    target_sess = db.scalars(select(IPsecSession).order_by(IPsecSession.packet_count.desc())).first()
             if target_sess:
                 sih_eval = SecurityAssessmentEngine.evaluate_session(db, target_sess)
                 sih_security_assessment = sih_eval.model_dump()
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("SIH security assessment section skipped: %s", exc)
 
         data_provenance = {
             "packet_headers": "OBSERVED",

@@ -18,3 +18,4 @@ export { VulnerabilitiesPage } from './Vulnerabilities';
 export { TrafficAnalysisPage } from './TrafficAnalysis';
 export { MetadataExposurePage } from './MetadataExposure';
 export { ThreatMatrixPage } from './ThreatMatrix';
+export { SecurityPosturePage } from './SecurityPosture';

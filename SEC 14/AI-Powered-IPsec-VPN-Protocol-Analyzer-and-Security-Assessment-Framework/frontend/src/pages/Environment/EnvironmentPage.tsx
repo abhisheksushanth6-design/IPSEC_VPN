@@ -3,6 +3,7 @@ import {
   AlertCircle,
   AlertTriangle,
   CheckCircle2,
+  FlaskConical,
   Network,
   Play,
   RefreshCw,
@@ -13,6 +14,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import type { StatusKind } from '@/types';
 
 import { PageContainer } from '@/components/layout';
@@ -24,8 +26,12 @@ import {
   EnvironmentVerificationResponse,
   fetchEnvironmentEvidence,
   fetchEnvironmentStatus,
+  fetchTestbedProfiles,
+  SimulateProfileResponse,
+  simulateTestbedProfile,
   startVM,
   stopVM,
+  TestbedProfile,
   verifyEnvironment,
   VMInfo,
 } from '@/services/environmentService';
@@ -39,6 +45,9 @@ export function EnvironmentPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [profiles, setProfiles] = useState<TestbedProfile[]>([]);
+  const [simulatingProfile, setSimulatingProfile] = useState<string | null>(null);
+  const [simulation, setSimulation] = useState<SimulateProfileResponse | null>(null);
 
   const loadStatus = useCallback(async () => {
     try {
@@ -55,6 +64,37 @@ export function EnvironmentPage() {
   useEffect(() => {
     loadStatus();
   }, [loadStatus]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchTestbedProfiles()
+      .then((items) => {
+        if (!cancelled) setProfiles(items.filter((p) => p.software_testbed));
+      })
+      .catch(() => {
+        /* profile list is optional; the VM testbed cards still render */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleSimulate = async (profile: TestbedProfile) => {
+    setSimulatingProfile(profile.id);
+    setActionMessage(null);
+    try {
+      const res = await simulateTestbedProfile(profile.id, { seed: Date.now() % 100000 });
+      setSimulation(res);
+      setActionMessage({
+        type: 'success',
+        text: `${res.profile_name}: ${res.packets_loaded} packets loaded as capture ${res.capture_id}, ${res.sessions_discovered} session(s) discovered.`,
+      });
+    } catch (err: any) {
+      setActionMessage({ type: 'error', text: err?.message || 'Testbed generation failed' });
+    } finally {
+      setSimulatingProfile(null);
+    }
+  };
 
   const handleVerify = async () => {
     setVerifying(true);
@@ -470,6 +510,94 @@ export function EnvironmentPage() {
           </div>
         </section>
       ) : null}
+
+      {/* Software testbed — reproducible IPsec configurations without a hypervisor */}
+      <section aria-labelledby="testbed-heading" className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 id="testbed-heading" className="text-base font-semibold text-primary">
+            Software Testbed — Reproducible IPsec Configurations
+          </h2>
+          <span className="text-2xs text-muted">
+            Real RFC 4303 ESP framing with real encryption; ground truth registered for every capture.
+          </span>
+        </div>
+        {profiles.length === 0 ? (
+          <p className="text-xs text-muted">
+            No software testbed profiles were reported by the backend.
+          </p>
+        ) : (
+          <Panel className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="border-b border-border text-muted">
+                  <tr>
+                    <th className="px-3 py-2">Profile</th>
+                    <th className="px-3 py-2">Mode</th>
+                    <th className="px-3 py-2">IKE</th>
+                    <th className="px-3 py-2">Encryption / Integrity</th>
+                    <th className="px-3 py-2">DH</th>
+                    <th className="px-3 py-2">PFS</th>
+                    <th className="px-3 py-2">IP</th>
+                    <th className="px-3 py-2">Traffic</th>
+                    <th className="px-3 py-2">Expected</th>
+                    <th className="px-3 py-2" />
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {profiles.map((p) => (
+                    <tr key={p.id}>
+                      <td className="px-3 py-2">
+                        <div className="font-semibold text-primary">{p.name}</div>
+                        <div className="font-mono text-2xs text-muted">{p.id}</div>
+                      </td>
+                      <td className="px-3 py-2 text-secondary">{p.mode}{p.nat_traversal ? ' · NAT-T' : ''}{p.tfc_padding ? ' · TFC' : ''}</td>
+                      <td className="px-3 py-2 text-secondary">{p.ike_version ?? '—'}</td>
+                      <td className="px-3 py-2 text-secondary">{p.encryption} / {p.integrity}</td>
+                      <td className="px-3 py-2 text-secondary">{p.dh_group}</td>
+                      <td className="px-3 py-2 text-secondary">{p.pfs_enabled ? 'on' : 'off'}</td>
+                      <td className="px-3 py-2 text-secondary">IPv{p.ip_version}</td>
+                      <td className="px-3 py-2 text-secondary">{p.traffic_type}</td>
+                      <td className="px-3 py-2">
+                        <span className={`text-2xs font-semibold ${p.security_rating === 'STRONG' ? 'text-success' : p.security_rating === 'WEAK' ? 'text-danger' : 'text-warning'}`}>
+                          {p.security_rating ?? '—'}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        <button
+                          type="button"
+                          onClick={() => handleSimulate(p)}
+                          disabled={simulatingProfile !== null}
+                          className="inline-flex items-center gap-1.5 rounded border border-border px-2.5 py-1 text-xs text-secondary hover:border-info hover:text-info disabled:opacity-50"
+                        >
+                          <FlaskConical className={`h-3.5 w-3.5 ${simulatingProfile === p.id ? 'animate-pulse' : ''}`} />
+                          {simulatingProfile === p.id ? 'Generating…' : 'Generate & load'}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Panel>
+        )}
+        {simulation ? (
+          <Panel className="p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+              <div className="text-secondary">
+                <span className="font-semibold text-primary">{simulation.profile_name}</span> → capture{' '}
+                <span className="font-mono">{simulation.capture_id}</span> · {simulation.packets_loaded} packets ·{' '}
+                {simulation.sessions_discovered} session(s) · {simulation.security_associations_discovered} SA(s) · seed {simulation.seed}
+              </div>
+              <Link
+                to="/security-posture"
+                className="inline-flex items-center gap-1.5 rounded bg-info px-2.5 py-1 text-xs font-medium text-white hover:bg-info/90"
+              >
+                <Shield className="h-3.5 w-3.5" /> Assess security posture
+              </Link>
+            </div>
+          </Panel>
+        ) : null}
+      </section>
 
       {/* Evidence Snapshot Explorer */}
       <section aria-labelledby="evidence-heading" className="space-y-3">

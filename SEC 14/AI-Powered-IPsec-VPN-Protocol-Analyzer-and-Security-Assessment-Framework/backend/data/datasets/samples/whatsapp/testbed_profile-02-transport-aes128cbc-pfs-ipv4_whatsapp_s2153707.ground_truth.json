@@ -1,0 +1,52 @@
+{
+  "aead": false,
+  "capture_id": "6cd8d0486a87405f6dfeb5c8d561fd39a1769b441e80478e82669def60a1f983",
+  "cipher_family": "AES-CBC",
+  "dh_group": 14,
+  "downgrade": false,
+  "duration_seconds": 48.2,
+  "encryption": "AES-128-CBC",
+  "generator": "software_testbed",
+  "ike": {
+    "offered": [
+      [
+        "AES-128-CBC",
+        "HMAC-SHA2-256",
+        14
+      ]
+    ],
+    "selected_proposal": {
+      "cipher": "AES-128-CBC",
+      "dh_group": 14,
+      "integrity": "HMAC-SHA2-256"
+    }
+  },
+  "ike_exchange_mode": "IKE_SA_INIT/IKE_AUTH",
+  "ike_included": true,
+  "ike_version": "2.0",
+  "integrity": "HMAC-SHA2-256",
+  "ip_version": 4,
+  "ipsec_protocol": "ESP",
+  "key_length": 128,
+  "mode": "TRANSPORT",
+  "nat_traversal": false,
+  "note": "Application traffic is model-generated; IPsec framing and encryption are real (RFC 4303 / RFC 4106 / RFC 3602 / RFC 7296).",
+  "pfs_enabled": true,
+  "profile_id": "PROFILE-02-TRANSPORT-AES128CBC-PFS-IPV4",
+  "profile_name": "Host-to-Host Voice Tunnel (Transport, AES-128-CBC+HMAC, DH14, PFS, IPv4)",
+  "rekey_observed": true,
+  "seed": 2153707,
+  "spis": [
+    "0x6861f2e5",
+    "0x652cbb06",
+    "0x74bff9d9",
+    "0x7612e4fe"
+  ],
+  "synthetic": true,
+  "tfc_padding": false,
+  "traffic_parameters": {
+    "media_transfers": 0
+  },
+  "traffic_type": "WHATSAPP",
+  "weak_fallback_offer": false
+}

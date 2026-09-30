@@ -46,10 +46,10 @@ describe('Reports Page (Layer 14)', () => {
 
     // Verify evidence-based audit traceability notice
     expect(
-      screen.getByText(/Evidence-Based Audit Traceability \(Layers 01–14\)/i),
+      screen.getByText(/Evidence-Based Audit Traceability \(Layers 01–10\)/i),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/composite Layer 10 risk assessments/i),
+      screen.getByText(/composite risk evaluations/i),
     ).toBeInTheDocument();
   });
 
@@ -61,7 +61,7 @@ describe('Reports Page (Layer 14)', () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/Full Assessment/i)).toBeInTheDocument();
     expect(screen.getByText(/Session Deep-Dive/i)).toBeInTheDocument();
-    expect(screen.getByText(/Vulnerability & Hardening/i)).toBeInTheDocument();
+    expect(screen.getByText(/Security Assessment & Hardening/i)).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: /Generate Assessment Report/i }),
     ).toBeInTheDocument();

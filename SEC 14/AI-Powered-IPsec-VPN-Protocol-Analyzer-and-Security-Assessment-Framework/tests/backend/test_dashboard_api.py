@@ -68,8 +68,8 @@ def test_dashboard_endpoints_empty_db(client) -> None:
 
     # Posture
     assert data["posture"]["backend_status"] == "OPERATIONAL"
-    assert data["posture"]["layers_total"] == 14
-    assert data["posture"]["layers_initialized"] >= 11
+    assert data["posture"]["layers_total"] == 10
+    assert data["posture"]["layers_initialized"] == 10
 
     # Metrics
     assert data["metrics"]["overall_risk_score"] is None

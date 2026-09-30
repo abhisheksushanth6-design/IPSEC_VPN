@@ -49,68 +49,83 @@ The AI engine classifies traffic flowing inside ESP into 6 target categories:
 
 ---
 
-## 4. Feature Extraction & Engineering (Layer 05 & 06)
+## 4. Feature Extraction & Engineering (Layer 05 & 06 → `FlowFeatures`, vector v2.0)
 
-Features are extracted per session/flow window from packet headers and inter-packet arrival times without payload inspection:
+Features are computed per session from the **ESP/AH data-plane packets only** (`FlowFeatures.from_packets`); IKE control messages are excluded so that negotiation traffic cannot leak into the flow statistics. No payload byte is inspected — every feature derives from frame lengths, timestamps and direction.
 
-### A. Size & Volume Distribution
-1. **`small_packet_ratio`**: Ratio of packets $< 128$ bytes (distinguishes VoIP, ICMP, and TCP ACKs).
-2. **`mtu_packet_ratio`**: Ratio of packets $> 1400$ bytes (distinguishes bulk transfer and video streaming).
-3. **`mean_packet_length`**: Average packet length in bytes.
-4. **`packet_length_variance`**: Variance of packet lengths (low for VoIP/ICMP, high for Web).
+| # | Feature | Meaning |
+|---|---|---|
+| 1 | `packet_count` | Data-plane packets in the flow |
+| 2 | `byte_count` | Bytes on the wire |
+| 3 | `duration` | Seconds between first and last data-plane packet |
+| 4 | `mean_iat` | Mean inter-arrival time (s) |
+| 5 | `iat_cv` | Coefficient of variation of the IAT ($\sigma/\mu$; isochronous VoIP ≈ 0.1, bursty chat > 1.5) |
+| 6 | `small_packet_ratio` | Fraction of frames $\le 160$ bytes |
+| 7 | `mtu_packet_ratio` | Fraction of frames $\ge 1200$ bytes |
+| 8 | `inbound_outbound_byte_ratio` | Responder-to-initiator byte ratio |
+| 9 | `packets_per_second` | Mean packet rate |
+| 10 | `bytes_per_second` | Mean throughput |
+| 11 | `chunk_burst_periodicity` | Period (s) of download bursts, when detected (video segment fetches) |
+| 12 | `mos_score_estimate` | ITU-T G.107 E-model estimate from cadence and jitter (only meaningful for voice-like flows) |
+| 13 | `direction_asymmetry` | $\lvert R-1\rvert/(R+1)$ of the byte ratio |
+| 14 | `mean_packet_length` | Mean frame length |
+| 15 | `packet_length_std` | Standard deviation of frame length |
+| 16 | `packet_length_cv` | Coefficient of variation of frame length |
+| 17 | `uplink_packet_ratio` | Fraction of packets sent by the initiator |
+| 18 | `idle_gap_ratio` | Fraction of inter-arrival gaps longer than 1 s |
+| 19 | `max_gap_seconds` | Longest silence |
+| 20 | `length_entropy_bits` | Shannon entropy of the frame-length histogram |
+| 21 | `burst_count` | Number of activity bursts |
+| 22 | `median_iat` | Median inter-arrival time (s) |
 
-### B. Timing & Cadence Properties
-5. **`mean_iat`**: Mean inter-arrival time between consecutive packets in milliseconds.
-6. **`iat_variance`**: Variance of inter-arrival times.
-7. **`iat_cv`**: Coefficient of variation ($\sigma / \mu$) of IAT (distinguishes isochronous VoIP from bursty Web).
-8. **`burst_periodicity_score`**: Autocorrelation of packet arrivals at key lags (detects periodic beaconing or video buffer chunks).
-
-### C. Directional & Flow Asymmetry
-9. **`byte_ratio`**: Downlink bytes divided by Uplink bytes (asymmetric for Web/Video $> 5.0$, symmetric for VoIP $\approx 1.0$).
-10. **`packet_ratio`**: Downlink packets divided by Uplink packets.
-11. **`packets_per_second` (pps)**: Mean packet transmission rate.
-12. **`bytes_per_second` (bps)**: Mean throughput.
-13. **`flow_duration_seconds`**: Total active session duration.
+The model bundle stores the exact feature-name order; `TrafficClassifier` maps the live vector by name so a feature added later cannot silently shift the columns.
 
 ---
 
 ## 5. Model Architecture & Inference
 
-### A. Multi-Class Encrypted Traffic Classifier
-- **Model**: Multi-Class Flow/Session Statistical Classifier with Softmax Probability Calibration.
-- **Inference Pipeline**:
-  $$\vec{x} \in \mathbb{R}^{13} \longrightarrow \text{Feature Normalization} \longrightarrow \text{Scoring Matrix} \longrightarrow \text{Softmax}(\vec{z}) \longrightarrow \hat{y}, \, \text{Confidence} = \max_k P(y=k \mid \vec{x})$$
-- **Confidence Calibration**: Outputs a calibrated confidence score $\in [0.50, 0.99]$. Predictions below 0.60 are assigned to `OTHER` with low confidence.
+### A. Multi-Class Encrypted Traffic Classifier (uncertainty-gated ensemble)
+- **Supervised model**: `RandomForestClassifier(n_estimators=300, max_depth=16, class_weight="balanced")` over the 22-feature vector, seven classes (`VOIP`, `WHATSAPP`, `EMAIL`, `WEB_BROWSING`, `ICMP`, `VIDEO_STREAMING`, `OTHER`).
+- **Signature rules**: physical-constraint scores (20 ms packetisation cadence and MOS for voice, keepalive gaps for chat, command/response + MTU trains for e-mail, periodic chunk bursts for video, 1 s echo cadence for ICMP) turned into probabilities with a softmax.
+- **Blend**: $P = w \cdot P_{rules} + (1-w) \cdot P_{model}$ with $w = 0.35$ while the model's top probability is $\ge 0.80$, rising linearly to $w = 0.65$ at $\le 0.50$. When the model is unsure the flow is outside its training distribution and the transferable physical rules take over; the gate is reported in the explanation trail.
+- **Physical-constraint calibration**: `ICMP` is zeroed when the cadence is not ~1 s and frames are not uniformly small; `VOIP` is zeroed when jitter or the mean IAT rule out an RTP stream.
+- **Abstention**: if no class reaches the 45 % floor, or the features do not come from packets, the prediction is `OTHER` with `abstained = true` — the classifier never guesses.
+- **Output**: predicted class, confidence, the full class distribution, `rule_probabilities`, `ml_probabilities`, `model_version` and an explanation list (feature → value → influence → reason).
 
-### B. Unsupervised Behavioral Anomaly Detection
+### B. Unsupervised Behavioral Anomaly Detection (supplementary)
 - **Model**: `scikit-learn` Isolation Forest (`sklearn.ensemble.IsolationForest`).
 - **Hyperparameters**: `n_estimators=100`, `contamination=0.05`, `random_state=42`.
-- **Purpose**: Detect anomalous session characteristics (e.g. data exfiltration tunnels, high-jitter retransmissions, abnormal burst volumes).
+- **Purpose**: Detect anomalous session characteristics (e.g. data exfiltration tunnels, high-jitter retransmissions, abnormal burst volumes). Explicitly marked as supplementary in the UI.
 
 ---
 
-## 6. Dataset Split & Evaluation Metrics
+## 6. Dataset, Split & Evaluation Metrics
 
-The model evaluation benchmark consists of 1,200 synthetic and captured IPsec VPN sessions across the 6 traffic categories:
+### A. Dataset v2.0 — provenance
+- **Generator**: the software testbed (`layer01_test_environment/software_testbed.py`). Application traffic follows statistical models per class (packet sizes, cadence, bursts, direction); the IPsec framing and the encryption are **real** (RFC 4303 ESP with AES-GCM / AES-CBC+HMAC / 3DES / ChaCha20-Poly1305, IKEv1/IKEv2 exchanges). **No real user traffic** is included.
+- **Featurisation**: every flow is written to a PCAP and pushed through the deployed Layer 03 → Layer 07 pipeline (`dataset_builder.features_from_pcap`), so training features and serving features are computed by the same code — no train/serve skew.
+- **Size**: 1,400 flows, 200 per class, durations 5–60 s, IKE included in ~60 % of captures; produced from seven configuration profiles (tunnel/transport, AES-128/256, GCM/CBC, IPv4/IPv6, NAT-T, 3DES legacy).
+- **Held-out configurations**: `PROFILE-07-TUNNEL-DOWNGRADE-IPV4` and `PROFILE-10-TUNNEL-TFC-PADDED-IPV4` are never used for training; 70 flows of each measure generalisation to unseen IPsec configurations.
+- **Artifacts**: `backend/data/datasets/esp_flow_features_v2.0.csv` (+ `esp_flow_dataset_v2.0.json` manifest and sample PCAPs per class), `backend/data/models/traffic_classifier_supervised.joblib`, `backend/data/models/traffic_metrics.json`.
+- **Reproduce**: `python -m app.layers.layer08_ai_ml.train_traffic_classifier --samples-per-class 200 --workers 4` (seeded; the generator is deterministic for a given seed).
 
-### A. Data Split
-- **Training Set (70%)**: 840 sessions
-- **Validation Set (15%)**: 180 sessions
-- **Test Set (15%)**: 180 sessions (stratified across all 6 classes)
+### B. Data Split
+- **Training Set (70 %)**: 980 flows
+- **Validation Set (15 %)**: 210 flows
+- **Test Set (15 %)**: 210 flows (stratified across all 7 classes, unseen seeds)
 
-### B. Evaluation Metrics on Holdout Test Set
+### C. Evaluation Metrics (`traffic_metrics.json`)
 
-| Class | Precision | Recall | F1-Score | Support |
-|-------|-----------|--------|----------|---------|
-| `VOIP` | 0.94 | 0.96 | 0.95 | 30 |
-| `WEB_BROWSING` | 0.91 | 0.89 | 0.90 | 30 |
-| `EMAIL` | 0.89 | 0.87 | 0.88 | 30 |
-| `ICMP` | 0.98 | 1.00 | 0.99 | 30 |
-| `VIDEO_STREAMING` | 0.95 | 0.93 | 0.94 | 30 |
-| `OTHER` | 0.87 | 0.89 | 0.88 | 30 |
-| **Macro Average** | **0.923** | **0.923** | **0.923** | **180** |
-| **Weighted Average** | **0.923** | **0.923** | **0.923** | **180** |
+| Metric | Value |
+|---|---|
+| Test accuracy / macro-F1 (210 flows) | **1.000 / 1.000** |
+| Validation accuracy | 0.995 |
+| 5-fold CV macro-F1 (on train+val) | **0.995 ± 0.003** |
+| Held-out configuration accuracy (140 flows) | **0.850** (macro-F1 0.843) |
+| — `PROFILE-07-TUNNEL-DOWNGRADE-IPV4` | 1.00 |
+| — `PROFILE-10-TUNNEL-TFC-PADDED-IPV4` | 0.70 (fixed 1200-byte TFC padding removes every length feature — the intended effect of TFC) |
+| Inference latency | ≈ 84 ms per flow (300 trees, single thread) |
 
-- **Overall Accuracy**: **92.3%**
-- **Average Inference Latency**: **1.4 ms** per session vector.
+Per-class precision/recall/F1 on the test split are 1.00 for all seven classes (30 flows each). The perfect test score reflects that test flows come from the *same generator* as the training flows; the held-out-configuration number and the TFC-padded result are the honest indicators of how the model behaves on traffic shapes it has not seen, and the uncertainty gate exists precisely for that case (the older hand-built fixtures in `tests/backend/synthetic_traffic_generator.py`, which the model has never seen, are classified correctly with 0.69–0.87 confidence because the rules take over).
+
 - **Zero Raw Payload Inspection**: Complies strictly with cryptographic privacy and operational reality.

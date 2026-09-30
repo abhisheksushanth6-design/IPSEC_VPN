@@ -1,0 +1,54 @@
+{
+  "aead": false,
+  "capture_id": "7927bc08d8fb41282415eb3295b2399e216a6a9894f7e197f52a4f8b9397ab34",
+  "cipher_family": "AES-CBC",
+  "dh_group": 14,
+  "downgrade": false,
+  "duration_seconds": 50.4,
+  "encryption": "AES-128-CBC",
+  "generator": "software_testbed",
+  "ike": {
+    "offered": [
+      [
+        "AES-128-CBC",
+        "HMAC-SHA2-256",
+        14
+      ]
+    ],
+    "selected_proposal": {
+      "cipher": "AES-128-CBC",
+      "dh_group": 14,
+      "integrity": "HMAC-SHA2-256"
+    }
+  },
+  "ike_exchange_mode": "IKE_SA_INIT/IKE_AUTH",
+  "ike_included": true,
+  "ike_version": "2.0",
+  "integrity": "HMAC-SHA2-256",
+  "ip_version": 4,
+  "ipsec_protocol": "ESP",
+  "key_length": 128,
+  "mode": "TRANSPORT",
+  "nat_traversal": false,
+  "note": "Application traffic is model-generated; IPsec framing and encryption are real (RFC 4303 / RFC 4106 / RFC 3602 / RFC 7296).",
+  "pfs_enabled": true,
+  "profile_id": "PROFILE-02-TRANSPORT-AES128CBC-PFS-IPV4",
+  "profile_name": "Host-to-Host Voice Tunnel (Transport, AES-128-CBC+HMAC, DH14, PFS, IPv4)",
+  "rekey_observed": true,
+  "seed": 5869709,
+  "spis": [
+    "0xcfafabc9",
+    "0x02935605",
+    "0x2c12f004",
+    "0x339474ff"
+  ],
+  "synthetic": true,
+  "tfc_padding": false,
+  "traffic_parameters": {
+    "ident": 1980,
+    "interval": 2.0,
+    "payload": 100
+  },
+  "traffic_type": "ICMP",
+  "weak_fallback_offer": false
+}

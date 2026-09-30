@@ -11,8 +11,10 @@ import {
   Layers,
   Network,
   Server,
+  LayoutGrid,
   Settings,
   ShieldAlert,
+  ShieldCheck,
   Sparkles,
   EyeOff,
 } from 'lucide-react';
@@ -103,13 +105,25 @@ export const NAVIGATION: NavigationGroup[] = [
         description: '5-vector side-channel exposure and leakage assessment (SPI, Monotonicity, Length/TFC, Timing, Topology).',
       },
       {
+        label: 'Security Posture',
+        path: '/security-posture',
+        icon: ShieldCheck,
+        description: 'Per-session SIH 26160 posture: provenance-tagged protocol identification, cryptographic strength, PFS, replay, compliance profiles and the what-if remediation simulator.',
+      },
+      {
         label: 'Security Assessment',
         path: '/vulnerabilities',
         icon: ShieldAlert,
         description: 'Comprehensive cryptographic strength, compliance, replay protection, and security evaluation.',
       },
       {
-        label: 'Risk & Threat Analysis',
+        label: 'Threat Matrix',
+        path: '/threat-matrix',
+        icon: LayoutGrid,
+        description: 'Standalone IPsec threat matrix: ten catalogued threats mapped to MITRE ATT&CK and NIST SP 800-77 with evidence-based status per capture.',
+      },
+      {
+        label: 'Risk Assessment',
         path: '/risk-assessment',
         icon: Gauge,
         description: 'Explainable risk scoring, threat matrix, and actionable recommendations.',

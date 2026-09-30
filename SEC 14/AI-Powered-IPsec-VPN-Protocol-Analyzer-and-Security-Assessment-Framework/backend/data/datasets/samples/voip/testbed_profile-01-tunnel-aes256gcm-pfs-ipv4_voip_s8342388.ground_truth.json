@@ -1,0 +1,39 @@
+{
+  "aead": true,
+  "capture_id": "8daa14294d2c35344d2949926291bda07a371a76cc68e5af82329c89d192c5b3",
+  "cipher_family": "AES-GCM",
+  "dh_group": 19,
+  "downgrade": false,
+  "duration_seconds": 31.2,
+  "encryption": "AES-256-GCM",
+  "generator": "software_testbed",
+  "ike": {},
+  "ike_exchange_mode": null,
+  "ike_included": false,
+  "ike_version": null,
+  "integrity": "AEAD",
+  "ip_version": 4,
+  "ipsec_protocol": "ESP",
+  "key_length": 256,
+  "mode": "TUNNEL",
+  "nat_traversal": false,
+  "note": "Application traffic is model-generated; IPsec framing and encryption are real (RFC 4303 / RFC 4106 / RFC 3602 / RFC 7296).",
+  "pfs_enabled": true,
+  "profile_id": "PROFILE-01-TUNNEL-AES256GCM-PFS-IPV4",
+  "profile_name": "Standard Secure Gateway (Tunnel, AES-256-GCM, DH19, PFS, IPv4)",
+  "rekey_observed": false,
+  "seed": 8342388,
+  "spis": [
+    "0xbdae577f",
+    "0x73936bcb"
+  ],
+  "synthetic": true,
+  "tfc_padding": false,
+  "traffic_parameters": {
+    "codec": "G.711",
+    "jitter_ms": 0.22,
+    "vad": false
+  },
+  "traffic_type": "VOIP",
+  "weak_fallback_offer": false
+}

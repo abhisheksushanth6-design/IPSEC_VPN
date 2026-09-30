@@ -41,6 +41,7 @@ def test_system_status_response_contains_verification_metrics(client) -> None:
             "IMPLEMENTED",
             "READY",
             "WARNING",
+            "PARTIALLY_OPERATIONAL",
             "ERROR",
         )
         assert layer["foundation_available"] is True

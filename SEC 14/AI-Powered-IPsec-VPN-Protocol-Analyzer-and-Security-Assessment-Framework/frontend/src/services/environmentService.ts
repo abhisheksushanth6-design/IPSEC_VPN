@@ -128,3 +128,68 @@ export async function verifyEnvironment(): Promise<EnvironmentVerificationRespon
 export async function fetchEnvironmentEvidence(): Promise<EnvironmentEvidenceResponse> {
   return requestJson<EnvironmentEvidenceResponse>('/api/environment/evidence');
 }
+
+/** A testbed configuration profile (VM testbed and software testbed). */
+export interface TestbedProfile {
+  id: string;
+  name: string;
+  mode: 'TUNNEL' | 'TRANSPORT' | string;
+  encryption: string;
+  integrity: string;
+  dh_group: string;
+  dh_group_number?: number;
+  pfs_enabled: boolean;
+  ip_version: number;
+  ike_version?: string;
+  ipsec_protocol?: string;
+  nat_traversal?: boolean;
+  tfc_padding?: boolean;
+  downgrade_demo?: boolean;
+  traffic_type: string;
+  security_rating?: string;
+  compliance_standard?: string;
+  description?: string;
+  software_testbed?: boolean;
+}
+
+export interface SimulateProfileResponse {
+  status: string;
+  generator: string;
+  profile_id: string;
+  profile_name: string;
+  capture_id: string;
+  filename: string;
+  packets_generated: number;
+  packets_loaded: number;
+  sessions_discovered: number;
+  security_associations_discovered: number;
+  mode: string;
+  traffic_type: string;
+  encryption: string;
+  integrity: string;
+  dh_group: number;
+  pfs_enabled: boolean;
+  ike_version: string;
+  seed: number;
+  ground_truth: Record<string, unknown>;
+}
+
+export async function fetchTestbedProfiles(): Promise<TestbedProfile[]> {
+  return requestJson<TestbedProfile[]>('/api/environment/testbed-profiles');
+}
+
+/** Generate a capture for a profile with the software testbed and load it into the pipeline. */
+export async function simulateTestbedProfile(
+  profileId: string,
+  options: { seed?: number; trafficType?: string; duration?: number; includeIke?: boolean } = {},
+): Promise<SimulateProfileResponse> {
+  const params = new URLSearchParams();
+  if (options.seed !== undefined) params.set('seed', String(options.seed));
+  if (options.trafficType) params.set('traffic_type', options.trafficType);
+  if (options.duration !== undefined) params.set('duration', String(options.duration));
+  if (options.includeIke !== undefined) params.set('include_ike', String(options.includeIke));
+  const qs = params.toString();
+  return postJson<SimulateProfileResponse>(
+    `/api/environment/simulate-profile/${encodeURIComponent(profileId)}${qs ? `?${qs}` : ''}`,
+  );
+}

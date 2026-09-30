@@ -2,26 +2,10 @@
   "problem_statement": "SIH 26160 \u2014 NTRO",
   "task": "AI-Based Protocol & Traffic Classification (Encrypted ESP)",
   "model_type": "RandomForestClassifier",
-  "n_estimators": 100,
-  "max_depth": 12,
-  "total_dataset_size": 1400,
-  "split": {
-    "train_samples": 980,
-    "val_samples": 210,
-    "test_samples": 210,
-    "train_ratio": 0.7,
-    "val_ratio": 0.15,
-    "test_ratio": 0.15
-  },
-  "classes": [
-    "VOIP",
-    "WHATSAPP",
-    "EMAIL",
-    "WEB_BROWSING",
-    "ICMP",
-    "VIDEO_STREAMING",
-    "OTHER"
-  ],
+  "model_version": "2.0",
+  "n_estimators": 300,
+  "max_depth": 16,
+  "feature_vector_version": "2.0",
   "features": [
     "packet_count",
     "byte_count",
@@ -35,26 +19,100 @@
     "bytes_per_second",
     "chunk_burst_periodicity",
     "mos_score_estimate",
-    "direction_asymmetry"
+    "direction_asymmetry",
+    "mean_packet_length",
+    "packet_length_std",
+    "packet_length_cv",
+    "uplink_packet_ratio",
+    "idle_gap_ratio",
+    "max_gap_seconds",
+    "length_entropy_bits",
+    "burst_count",
+    "median_iat"
   ],
-  "validation_accuracy": 0.9762,
-  "validation_macro_f1": 0.9758,
-  "test_accuracy": 0.9714,
-  "test_macro_f1": 0.9714,
+  "classes": [
+    "VOIP",
+    "WHATSAPP",
+    "EMAIL",
+    "WEB_BROWSING",
+    "ICMP",
+    "VIDEO_STREAMING",
+    "OTHER"
+  ],
+  "dataset": {
+    "version": "2.0",
+    "total_flows": 1400,
+    "training_profiles": [
+      "PROFILE-01-TUNNEL-AES256GCM-PFS-IPV4",
+      "PROFILE-02-TRANSPORT-AES128CBC-PFS-IPV4",
+      "PROFILE-03-TUNNEL-AES128GCM-NOPFS-IPV4",
+      "PROFILE-04-TRANSPORT-AES256CBC-PFS-IPV6",
+      "PROFILE-05-TUNNEL-3DESCBC-NOPFS-IPV4",
+      "PROFILE-06-TUNNEL-AES256GCM-PFS-IPV6",
+      "PROFILE-09-TUNNEL-NATT-CHACHA-IPV4"
+    ],
+    "held_out_profiles": [
+      "PROFILE-07-TUNNEL-DOWNGRADE-IPV4",
+      "PROFILE-10-TUNNEL-TFC-PADDED-IPV4"
+    ],
+    "provenance": "Synthetic application traffic (statistical models) inside real RFC 4303 ESP framing with real encryption; features extracted through the deployed Layer 03 \u2192 Layer 07 pipeline. No real user traffic.",
+    "split": {
+      "train": 980,
+      "val": 210,
+      "test": 210,
+      "ratios": [
+        0.7,
+        0.15,
+        0.15
+      ]
+    }
+  },
+  "validation_accuracy": 0.9952,
+  "validation_macro_f1": 0.9952,
+  "test_accuracy": 1.0,
+  "test_macro_f1": 1.0,
+  "cv5_macro_f1_mean": 0.9949,
+  "cv5_macro_f1_std": 0.0032,
+  "held_out_configuration": {
+    "accuracy": 0.85,
+    "macro_f1": 0.8432,
+    "samples": 140,
+    "by_profile": {
+      "PROFILE-07-TUNNEL-DOWNGRADE-IPV4": {
+        "accuracy": 1.0,
+        "samples": 70
+      },
+      "PROFILE-10-TUNNEL-TFC-PADDED-IPV4": {
+        "accuracy": 0.7,
+        "samples": 70
+      }
+    },
+    "note": "Profiles never seen in training (downgrade suite; TFC-padded frames). TFC padding is designed to defeat size-based classification, so lower accuracy there is expected and honest."
+  },
+  "inference_latency_ms": 83.894,
   "feature_importances": {
-    "mtu_packet_ratio": 0.1586,
-    "bytes_per_second": 0.1197,
-    "small_packet_ratio": 0.119,
-    "packets_per_second": 0.1018,
-    "mean_iat": 0.0881,
-    "byte_count": 0.087,
-    "iat_cv": 0.0715,
-    "chunk_burst_periodicity": 0.065,
-    "mos_score_estimate": 0.0445,
-    "direction_asymmetry": 0.0421,
-    "inbound_outbound_byte_ratio": 0.0419,
-    "duration": 0.0389,
-    "packet_count": 0.022
+    "max_gap_seconds": 0.1147,
+    "iat_cv": 0.0925,
+    "packet_length_cv": 0.0838,
+    "packet_length_std": 0.0698,
+    "length_entropy_bits": 0.0653,
+    "small_packet_ratio": 0.055,
+    "packets_per_second": 0.0522,
+    "mean_iat": 0.05,
+    "mtu_packet_ratio": 0.0476,
+    "inbound_outbound_byte_ratio": 0.041,
+    "median_iat": 0.0397,
+    "duration": 0.0393,
+    "uplink_packet_ratio": 0.0332,
+    "bytes_per_second": 0.0331,
+    "packet_count": 0.0323,
+    "byte_count": 0.0298,
+    "direction_asymmetry": 0.0265,
+    "chunk_burst_periodicity": 0.0226,
+    "mos_score_estimate": 0.0208,
+    "idle_gap_ratio": 0.0204,
+    "mean_packet_length": 0.0171,
+    "burst_count": 0.0136
   },
   "per_class_metrics": {
     "VOIP": {
@@ -76,9 +134,9 @@
       "support": 30
     },
     "WEB_BROWSING": {
-      "precision": 0.875,
-      "recall": 0.9333,
-      "f1_score": 0.9032,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
       "support": 30
     },
     "ICMP": {
@@ -94,10 +152,87 @@
       "support": 30
     },
     "OTHER": {
-      "precision": 0.9286,
-      "recall": 0.8667,
-      "f1_score": 0.8966,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
       "support": 30
     }
-  }
+  },
+  "confusion_matrix": {
+    "labels": [
+      "VOIP",
+      "WHATSAPP",
+      "EMAIL",
+      "WEB_BROWSING",
+      "ICMP",
+      "VIDEO_STREAMING",
+      "OTHER"
+    ],
+    "matrix": [
+      [
+        30,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        30,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        30,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        30,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        30,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        30,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        30
+      ]
+    ]
+  },
+  "trained_at": "2026-09-30T08:26:50.853026+00:00"
 }

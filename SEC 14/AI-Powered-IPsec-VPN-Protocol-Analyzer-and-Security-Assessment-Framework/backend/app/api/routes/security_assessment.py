@@ -134,3 +134,43 @@ def get_capture_security_assessments(
         raise HTTPException(status_code=404, detail=f"No sessions found for capture {capture_id}")
     return [SecurityAssessmentEngine.evaluate_session(db, s) for s in sessions]
 
+
+# ---------------------------------------------------------------------------
+# What-if remediation simulator
+# ---------------------------------------------------------------------------
+
+from pydantic import BaseModel, Field as _Field
+
+
+class WhatIfRequest(BaseModel):
+    """Hypothetical configuration to re-score a session against. Every field is optional."""
+
+    cipher: Optional[str] = _Field(None, description="e.g. AES-GCM-256, AES-CBC-128, 3DES, CHACHA20-POLY1305", max_length=40)
+    key_length: Optional[int] = _Field(None, ge=56, le=512)
+    integrity: Optional[str] = _Field(None, description="e.g. HMAC-SHA2-256, SHA1, MD5, AEAD", max_length=40)
+    prf: Optional[str] = _Field(None, description="e.g. SHA2-256, SHA1, MD5", max_length=40)
+    dh_group: Optional[int] = _Field(None, ge=1, le=64, description="IANA DH group number")
+    pfs_enabled: Optional[bool] = None
+    ike_version: Optional[str] = _Field(None, pattern="^(1\\.0|2\\.0)$")
+    ipsec_mode: Optional[str] = _Field(None, pattern="^(?i)(TUNNEL|TRANSPORT)$")
+    tfc_padding: Optional[bool] = _Field(None, description="Assume RFC 4303 §2.7 TFC padding is enabled")
+
+
+@router.post(
+    "/what-if/{session_id}",
+    responses=ERROR_RESPONSES,
+    summary="Re-score a session under a hypothetical configuration (remediation simulator)",
+)
+def what_if_assessment(
+    session_id: str,
+    body: WhatIfRequest,
+    db: Session = Depends(get_db),
+) -> dict:
+    session = db.scalar(select(IPsecSession).where(IPsecSession.id == session_id))
+    if not session:
+        raise HTTPException(status_code=404, detail=f"IPsec session {session_id} not found")
+    overrides = body.model_dump(exclude_none=True)
+    if not overrides:
+        raise HTTPException(status_code=422, detail="Provide at least one hypothetical setting to simulate.")
+    return SecurityAssessmentEngine.what_if(db, session, overrides)
+
