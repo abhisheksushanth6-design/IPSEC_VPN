@@ -245,7 +245,7 @@ class AnomalyInferenceService:
             select(BaselineSessionLinkRow).where(
                 BaselineSessionLinkRow.session_id == request.session_id
             )
-        ).scalar_one_or_none()
+        ).scalars().first()
 
         baseline_status = "WITHIN_BASELINE" if baseline_link else "NO_BASELINE"
 

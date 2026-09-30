@@ -8,25 +8,58 @@
  * Every colour in the application resolves to one of these variables through
  * the Tailwind theme in `tailwind.config.js`. Change a value here and it
  * changes everywhere. Components must not introduce raw hex values.
+ *
+ * Light Mode is the crisp default appearance.
+ * Dark Mode is a professional, high-contrast cybersecurity operations palette.
  */
 @layer base {
-  :root {
+  :root,
+  [data-theme="light"] {
     /* Structure */
-    --color-background: 11 16 23;        /* #0B1017 page ground */
-    --color-surface: 18 26 36;           /* #121A24 panels, sidebar, header */
-    --color-elevated: 26 37 49;          /* #1A2531 cards raised above surface */
-    --color-border: 38 51 63;            /* #26333F hairlines and dividers */
+    --color-background: 248 250 252;     /* #F8FAFC Main page background */
+    --color-surface: 255 255 255;        /* #FFFFFF Panels, sidebar, header */
+    --color-elevated: 255 255 255;       /* #FFFFFF Cards raised above surface */
+    --color-secondary-surface: 241 245 249; /* #F1F5F9 Secondary surface */
+    --color-border: 226 232 240;         /* #E2E8F0 Dividers and borders */
 
     /* Text */
-    --color-text-primary: 232 237 242;   /* #E8EDF2 headings, values */
-    --color-text-secondary: 169 182 196; /* #A9B6C4 body copy */
-    --color-text-muted: 111 127 143;     /* #6F7F8F labels, metadata */
+    --color-text-primary: 15 23 42;      /* #0F172A Headings, prominent metrics */
+    --color-text-secondary: 71 85 105;   /* #475569 Body copy, standard labels */
+    --color-text-muted: 100 116 139;     /* #64748B Secondary metadata, muted labels */
 
     /* Semantic state */
-    --color-success: 63 185 140;         /* #3FB98C healthy, online */
-    --color-warning: 224 163 62;         /* #E0A33E degraded, attention */
-    --color-danger: 224 92 92;           /* #E05C5C offline, critical */
-    --color-info: 79 155 217;            /* #4F9BD9 informational, active */
+    --color-success: 22 163 74;          /* #16A34A Success, online, healthy */
+    --color-warning: 217 119 6;          /* #D97706 Attention, degraded, warning */
+    --color-danger: 220 38 38;           /* #DC2626 Critical, offline, high risk */
+    --color-info: 37 99 235;             /* #2563EB Primary accent, active links */
+
+    /* Layout metrics */
+    --sidebar-width: 16rem;
+    --sidebar-width-collapsed: 4.25rem;
+    --header-height: 3.5rem;
+
+    color-scheme: light;
+  }
+
+  [data-theme="dark"],
+  .dark {
+    /* Structure */
+    --color-background: 11 17 32;        /* #0B1120 Main Background */
+    --color-surface: 17 24 39;           /* #111827 Sidebar, header, base surface */
+    --color-elevated: 30 41 59;          /* #1E293B Cards */
+    --color-secondary-surface: 39 52 73; /* #273449 Secondary Surface */
+    --color-border: 51 65 85;            /* #334155 Hairlines and borders */
+
+    /* Text */
+    --color-text-primary: 248 250 252;   /* #F8FAFC Primary text, headings */
+    --color-text-secondary: 203 213 225; /* #CBD5E1 Secondary text, body copy */
+    --color-text-muted: 148 163 184;     /* #94A3B8 Secondary labels, metadata */
+
+    /* Semantic state */
+    --color-success: 34 197 94;          /* #22C55E Success, online, healthy */
+    --color-warning: 245 158 11;         /* #F59E0B Warning, degraded */
+    --color-danger: 239 68 68;           /* #EF4444 Danger, offline, critical */
+    --color-info: 59 130 246;            /* #3B82F6 Primary Accent */
 
     /* Layout metrics */
     --sidebar-width: 16rem;
@@ -45,6 +78,23 @@
   body {
     @apply bg-background text-secondary font-sans antialiased;
     font-feature-settings: 'cv02', 'cv03', 'cv04';
+    transition: background-color 0.25s ease, color 0.25s ease;
+  }
+
+  header,
+  nav,
+  aside,
+  main,
+  footer,
+  article,
+  section,
+  table,
+  th,
+  td,
+  input,
+  select,
+  textarea {
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
   }
 
   h1,
@@ -83,6 +133,98 @@
 
   .scrollbar-slim::-webkit-scrollbar-track {
     background: transparent;
+  }
+}
+
+/* Light mode adaptations for hardcoded dark utility classes */
+[data-theme="light"] {
+  .bg-slate-900\/60,
+  .bg-slate-900\/40,
+  .bg-slate-900 {
+    background-color: #FFFFFF !important;
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.04);
+  }
+
+  .bg-slate-950\/60,
+  .bg-slate-950\/80,
+  .bg-slate-950 {
+    background-color: #F8FAFC !important;
+  }
+
+  .bg-slate-800\/40,
+  .bg-slate-800\/80,
+  .bg-slate-800\/30,
+  .bg-slate-800 {
+    background-color: #F1F5F9 !important;
+  }
+
+  .border-slate-800,
+  .border-slate-800\/80,
+  .border-slate-700,
+  .border-slate-700\/60 {
+    border-color: #E2E8F0 !important;
+  }
+
+  /* Text contrast within adapted cards */
+  .bg-slate-900 .text-white,
+  .bg-slate-900\/60 .text-white,
+  .bg-slate-950 .text-white,
+  .bg-slate-950\/60 .text-white,
+  h1.text-slate-100,
+  .text-slate-100,
+  .text-slate-200 {
+    color: #0F172A !important;
+  }
+
+  .text-slate-300,
+  .text-slate-400 {
+    color: #475569 !important;
+  }
+
+  .text-slate-500 {
+    color: #64748B !important;
+  }
+
+  /* Preserve crisp white text on colored action buttons and badges */
+  button[class*="bg-sky-"],
+  button[class*="bg-indigo-"],
+  button[class*="bg-blue-"],
+  button[class*="bg-emerald-"],
+  button[class*="bg-green-"],
+  button[class*="bg-rose-"],
+  button[class*="bg-red-"],
+  button[class*="from-"],
+  span[class*="bg-cyan-"],
+  span[class*="bg-emerald-"],
+  span[class*="bg-indigo-"],
+  a[class*="bg-indigo-"],
+  a[class*="bg-emerald-"],
+  .btn-primary {
+    color: #FFFFFF !important;
+  }
+
+  /* Table headers */
+  thead.bg-slate-950\/80,
+  thead[class*="bg-slate"] {
+    background-color: #F1F5F9 !important;
+    color: #475569 !important;
+    border-color: #E2E8F0 !important;
+  }
+
+  /* Table row hover */
+  tr[class*="hover:bg-slate"]:hover {
+    background-color: #F8FAFC !important;
+  }
+
+  /* Search input in dark panels */
+  input[class*="bg-slate-950"] {
+    background-color: #FFFFFF !important;
+    color: #0F172A !important;
+    border-color: #CBD5E1 !important;
+  }
+
+  input[class*="bg-slate-950"]::placeholder {
+    color: #94A3B8 !important;
   }
 }
 

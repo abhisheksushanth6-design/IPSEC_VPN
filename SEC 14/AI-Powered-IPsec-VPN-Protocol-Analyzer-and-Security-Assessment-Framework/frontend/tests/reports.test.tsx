@@ -44,11 +44,13 @@ describe('Reports Page (Layer 14)', () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/LAYER 14 OPERATIONAL/i)).toBeInTheDocument();
 
-    // Verify evidence notice states Layer 10 is NOT INITIALIZED
+    // Verify evidence-based audit traceability notice
     expect(
-      screen.getByText(/Layer 10 \(Risk Assessment & Decision Engine\) remains/i),
+      screen.getByText(/Evidence-Based Audit Traceability \(Layers 01–14\)/i),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Risk assessment unavailable/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/composite Layer 10 risk assessments/i),
+    ).toBeInTheDocument();
   });
 
   it('renders report generator options and scope controls', async () => {

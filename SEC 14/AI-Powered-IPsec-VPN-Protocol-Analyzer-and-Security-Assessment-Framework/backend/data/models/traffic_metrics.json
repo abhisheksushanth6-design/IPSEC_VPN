@@ -1,0 +1,103 @@
+{
+  "problem_statement": "SIH 26160 \u2014 NTRO",
+  "task": "AI-Based Protocol & Traffic Classification (Encrypted ESP)",
+  "model_type": "RandomForestClassifier",
+  "n_estimators": 100,
+  "max_depth": 12,
+  "total_dataset_size": 1400,
+  "split": {
+    "train_samples": 980,
+    "val_samples": 210,
+    "test_samples": 210,
+    "train_ratio": 0.7,
+    "val_ratio": 0.15,
+    "test_ratio": 0.15
+  },
+  "classes": [
+    "VOIP",
+    "WHATSAPP",
+    "EMAIL",
+    "WEB_BROWSING",
+    "ICMP",
+    "VIDEO_STREAMING",
+    "OTHER"
+  ],
+  "features": [
+    "packet_count",
+    "byte_count",
+    "duration",
+    "mean_iat",
+    "iat_cv",
+    "small_packet_ratio",
+    "mtu_packet_ratio",
+    "inbound_outbound_byte_ratio",
+    "packets_per_second",
+    "bytes_per_second",
+    "chunk_burst_periodicity",
+    "mos_score_estimate",
+    "direction_asymmetry"
+  ],
+  "validation_accuracy": 0.9762,
+  "validation_macro_f1": 0.9758,
+  "test_accuracy": 0.9714,
+  "test_macro_f1": 0.9714,
+  "feature_importances": {
+    "mtu_packet_ratio": 0.1586,
+    "bytes_per_second": 0.1197,
+    "small_packet_ratio": 0.119,
+    "packets_per_second": 0.1018,
+    "mean_iat": 0.0881,
+    "byte_count": 0.087,
+    "iat_cv": 0.0715,
+    "chunk_burst_periodicity": 0.065,
+    "mos_score_estimate": 0.0445,
+    "direction_asymmetry": 0.0421,
+    "inbound_outbound_byte_ratio": 0.0419,
+    "duration": 0.0389,
+    "packet_count": 0.022
+  },
+  "per_class_metrics": {
+    "VOIP": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "support": 30
+    },
+    "WHATSAPP": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "support": 30
+    },
+    "EMAIL": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "support": 30
+    },
+    "WEB_BROWSING": {
+      "precision": 0.875,
+      "recall": 0.9333,
+      "f1_score": 0.9032,
+      "support": 30
+    },
+    "ICMP": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "support": 30
+    },
+    "VIDEO_STREAMING": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "support": 30
+    },
+    "OTHER": {
+      "precision": 0.9286,
+      "recall": 0.8667,
+      "f1_score": 0.8966,
+      "support": 30
+    }
+  }
+}

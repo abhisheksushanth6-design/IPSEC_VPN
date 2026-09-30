@@ -9,9 +9,14 @@ from fastapi.responses import JSONResponse
 
 from app.schemas.packets import (
     AnalysisStatusSchema,
+    IKEProposalSchema,
+    IPsecStreamSummarySchema,
     PacketAnalysisResultSchema,
     PacketErrorSchema,
     PacketPageSchema,
+    ProtocolAnalysisReportSchema,
+    ProtocolAnomalySchema,
+    TunnelEndpointSummarySchema,
 )
 from app.services.packet_service import MAX_UPLOAD_BYTES, PacketServiceError, packet_service
 
@@ -35,6 +40,31 @@ def register_packet_error_handler(app) -> None:  # type: ignore[no-untyped-def]
 @router.get("/status", response_model=AnalysisStatusSchema, summary="Analyzer state and statistics")
 def read_status() -> AnalysisStatusSchema:
     return packet_service.status()
+
+
+@router.get("/protocol-analysis", response_model=ProtocolAnalysisReportSchema, summary="Full Layer 3 IPsec protocol analysis report")
+def get_protocol_analysis() -> ProtocolAnalysisReportSchema:
+    return packet_service.protocol_analysis()
+
+
+@router.get("/anomalies", response_model=list[ProtocolAnomalySchema], summary="Protocol anomalies detected in capture")
+def get_anomalies() -> list[ProtocolAnomalySchema]:
+    return packet_service.get_anomalies()
+
+
+@router.get("/streams", response_model=list[IPsecStreamSummarySchema], summary="ESP/AH streams and sequence tracking")
+def get_streams() -> list[IPsecStreamSummarySchema]:
+    return packet_service.get_streams()
+
+
+@router.get("/tunnel-endpoints", response_model=list[TunnelEndpointSummarySchema], summary="Discovered IPsec tunnel endpoints")
+def get_tunnel_endpoints() -> list[TunnelEndpointSummarySchema]:
+    return packet_service.get_tunnel_endpoints()
+
+
+@router.get("/ike-proposals", response_model=list[IKEProposalSchema], summary="Extracted IKE security association proposals")
+def get_ike_proposals() -> list[IKEProposalSchema]:
+    return packet_service.get_ike_proposals()
 
 
 @router.get("", response_model=PacketPageSchema, summary="List analysed packets")

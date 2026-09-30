@@ -6,5 +6,7 @@ export { SessionRow } from './SessionRow';
 export { SessionStateBadge } from './SessionStateBadge';
 export { SessionTable } from './SessionTable';
 export { SessionToolbar, engineBadge } from './SessionToolbar';
-export { formatBytes, formatDuration, formatSessionTime } from './sessionFormat';
+export { formatBytes, formatDuration, formatSessionTime, formatTimeOnly, parseSessionDate } from './sessionFormat';
 export { SessionSALinks } from './SessionSALinks';
+export { SessionFingerprintCard } from './SessionFingerprintCard';
+

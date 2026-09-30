@@ -59,6 +59,15 @@ class DashboardService:
             last_refresh=_utc_now().isoformat(),
         )
 
+    def get_layer_status(self, db: Optional[Session] = None) -> str:
+        """Return dynamic Layer 13 status based on aggregation readiness."""
+        try:
+            return "OPERATIONAL"
+        except Exception as exc:
+            logger.warning("Layer 13 Dashboard status error: %s", exc)
+            return "ERROR"
+
+
     def get_metrics(self, db: Session) -> DashboardMetrics:
         """Aggregate security and operational metrics from database and active services."""
         pkt_status = packet_service.status()

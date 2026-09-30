@@ -2,7 +2,7 @@ import { PageContainer } from '@/components/layout';
 import { PageHeader } from '@/components/ui';
 import { ErrorState } from '@/components/states';
 import {
-  AnomalyTimelineChart,
+  AITrafficDistributionChart,
   ChartCard,
   MetricCard,
   ProtocolDistributionChart,
@@ -20,13 +20,12 @@ import {
   ExecutivePostureBanner,
   LayerSummaryCards,
 } from '@/components/dashboard';
-import { PROJECT_NAME } from '@/config/branding';
 import { useSystemState } from '@/context/SystemStateContext';
 import { useDashboardData } from '@/hooks';
 
 /**
  * Overview dashboard. Every figure comes from `useDashboardData`, which
- * reports each security metric as unavailable until its engine exists.
+ * aggregates real metrics, posture, timeline events, and protocol transforms.
  */
 export function OverviewPage() {
   const { state, reachable, status, errorMessage, refresh } = useSystemState();
@@ -36,7 +35,7 @@ export function OverviewPage() {
     <PageContainer>
       <PageHeader
         title="Overview"
-        description={`Security posture and operational overview of the ${PROJECT_NAME}.`}
+        description="Integrated IPsec protocol analysis, session fingerprinting, AI traffic classification, security assessment, and risk analysis."
         status={
           state === 'loading'
             ? 'INITIALIZING'
@@ -66,7 +65,12 @@ export function OverviewPage() {
         </div>
       </section>
 
-      <LayerSummaryCards summary={data.summary} />
+      <LayerSummaryCards
+        summary={data.summary}
+        trafficSummary={data.trafficSummary}
+        metadataSummary={data.metadataSummary}
+        fingerprintCount={data.fingerprintCount}
+      />
 
       <div className="grid gap-6 lg:grid-cols-2">
         <RiskCard risk={data.risk} />
@@ -86,19 +90,19 @@ export function OverviewPage() {
           <ChartCard title="Traffic Timeline" description="Packets observed per interval." source="Layer 02 · 03">
             <TrafficTimelineChart data={data.traffic} />
           </ChartCard>
-          <ChartCard title="Risk Trend" description="Overall risk score over time." source="Layer 10">
+          <ChartCard title="Risk Trend" description="Overall risk score over time." source="Layer 09">
             <RiskTrendChart data={data.riskHistory} />
           </ChartCard>
           <ChartCard title="Protocol Distribution" description="Share of IKE, ESP, AH, UDP and IP." source="Layer 03">
             <ProtocolDistributionChart data={data.protocols} />
           </ChartCard>
-          <ChartCard title="AI Anomalies Over Time" description="Sessions flagged per interval." source="Layer 08">
-            <AnomalyTimelineChart data={data.anomalies} />
+          <ChartCard title="AI Traffic Classification" description="Encrypted ESP payload distribution." source="Layer 07">
+            <AITrafficDistributionChart data={data.trafficClassification} />
           </ChartCard>
-          <ChartCard title="Vulnerability Severity" description="Findings by severity." source="Layer 09">
+          <ChartCard title="Security Assessment Findings" description="Findings by severity." source="Layer 08">
             <VulnerabilitySeverityChart data={data.vulnerabilities} />
           </ChartCard>
-          <ChartCard title="SA Lifecycle Activity" description="Security Associations by state." source="Layer 04">
+          <ChartCard title="SA & Protocol State Activity" description="Security Associations by state." source="Layer 04">
             <SAActivityChart data={data.saActivity} />
           </ChartCard>
         </div>

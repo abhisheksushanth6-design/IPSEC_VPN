@@ -188,3 +188,21 @@ class DriftDetectionDomainService:
             analyzed_at=now_str,
             feature_results=feature_results,
         )
+
+    def get_layer_status(self) -> str:
+        """Return operational readiness of the drift detection engine."""
+        if self.evaluator is not None and self.config is not None:
+            return "OPERATIONAL"
+        return "READY"
+
+
+_drift_service: Optional[DriftDetectionDomainService] = None
+
+
+def get_drift_domain_service() -> DriftDetectionDomainService:
+    """Singleton provider for DriftDetectionDomainService."""
+    global _drift_service
+    if _drift_service is None:
+        _drift_service = DriftDetectionDomainService()
+    return _drift_service
+

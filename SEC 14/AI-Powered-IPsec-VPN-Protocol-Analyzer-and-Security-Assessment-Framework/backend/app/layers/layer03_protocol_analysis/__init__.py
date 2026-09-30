@@ -19,5 +19,36 @@ from app.layers.layer03_protocol_analysis.analyzer import (  # noqa: E402
     analyze_frame,
 )
 from app.layers.layer03_protocol_analysis.errors import CaptureFormatError  # noqa: E402
+from app.layers.layer03_protocol_analysis.models import (  # noqa: E402
+    IKEProposal,
+    IKETransform,
+    IPsecStreamSummary,
+    ProtocolAnalysisReport,
+    ProtocolAnomaly,
+    TunnelEndpointSummary,
+)
+from app.layers.layer03_protocol_analysis.protocol_engine import (  # noqa: E402
+    analyze_protocol_telemetry,
+)
+from app.layers.layer03_protocol_analysis.service import (  # noqa: E402
+    ProtocolAnalysisService,
+    get_protocol_analysis_service,
+)
 
-__all__ = ["LAYER_NUMBER", "LAYER_NAME", "analyze_capture", "analyze_frame", "CaptureFormatError"]
+__all__ = [
+    "LAYER_NUMBER",
+    "LAYER_NAME",
+    "analyze_capture",
+    "analyze_frame",
+    "analyze_protocol_telemetry",
+    "CaptureFormatError",
+    "IKEProposal",
+    "IKETransform",
+    "IPsecStreamSummary",
+    "TunnelEndpointSummary",
+    "ProtocolAnomaly",
+    "ProtocolAnalysisReport",
+    "ProtocolAnalysisService",
+    "get_protocol_analysis_service",
+]
+

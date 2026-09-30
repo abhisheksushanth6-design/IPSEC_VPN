@@ -1,17 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Activity,
-  BrainCircuit,
   Cable,
   Gauge,
-  GitCompare,
   KeyRound,
   Network,
-  ShieldAlert,
 } from 'lucide-react';
 
 import { useSystemState } from '@/context/SystemStateContext';
 import { dashboardService } from '@/services/dashboardService';
+import { trafficAnalysisService } from '@/services/trafficAnalysisService';
+import { metadataExposureService } from '@/services/metadataExposureService';
+import { baselineService } from '@/services/baselineService';
 import type {
   DashboardData,
   DashboardMetric,
@@ -25,30 +24,60 @@ import type {
   SecurityEvent,
   SecurityEventType,
   SeverityLevel,
+  TrafficClassificationSummary,
+  MetadataExposureSummary,
   VulnerabilitySeverity,
 } from '@/types';
 
 export interface UseDashboardResult extends DashboardData {
   summary: DashboardSummaryResponse | null;
+  trafficSummary: TrafficClassificationSummary | null;
+  metadataSummary: MetadataExposureSummary | null;
+  fingerprintCount: number;
+  trafficClassification: { type: string; count: number }[] | null;
   loading: boolean;
   refetch: () => Promise<void>;
 }
 
 /**
- * Assembles the operational overview data model by querying Layer 13 Web Dashboard API.
- * Aggregates real metrics, posture, timeline events, and protocol transforms.
- * Layer 10 Risk Assessment remains strictly NOT INITIALIZED.
+ * Assembles the operational overview data model by querying Layer 10 Dashboard API,
+ * Layer 07 AI Traffic Classification, Layer 08 Metadata Exposure & Security Assessment, and Layer 06 Fingerprints.
  */
 export function useDashboardData(): UseDashboardResult {
   const { reachable, status } = useSystemState();
   const [summary, setSummary] = useState<DashboardSummaryResponse | null>(null);
+  const [trafficSummary, setTrafficSummary] = useState<TrafficClassificationSummary | null>(null);
+  const [metadataSummary, setMetadataSummary] = useState<MetadataExposureSummary | null>(null);
+  const [fingerprintCount, setFingerprintCount] = useState<number>(0);
   const [loading, setLoading] = useState(false);
 
   const fetchSummary = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await dashboardService.getSummary();
-      setSummary(res);
+      const [sumRes, trafRes, metaRes, fpsRes] = await Promise.allSettled([
+        dashboardService.getSummary(),
+        trafficAnalysisService.getDistribution(),
+        metadataExposureService.getGlobalSummary(),
+        baselineService.listFingerprints(),
+      ]);
+
+      if (sumRes.status === 'fulfilled') {
+        setSummary(sumRes.value);
+      } else if (!reachable) {
+        setSummary(null);
+      }
+
+      if (trafRes.status === 'fulfilled' && trafRes.value) {
+        setTrafficSummary(trafRes.value);
+      }
+
+      if (metaRes.status === 'fulfilled' && metaRes.value) {
+        setMetadataSummary(metaRes.value);
+      }
+
+      if (fpsRes.status === 'fulfilled' && Array.isArray(fpsRes.value)) {
+        setFingerprintCount(fpsRes.value.length);
+      }
     } catch {
       if (!reachable) {
         setSummary(null);
@@ -71,9 +100,6 @@ export function useDashboardData(): UseDashboardResult {
     const isLayer10Ready = isLayerActive(10);
     const isLayer04Ready = isLayerActive(4);
     const isLayer03Ready = isLayerActive(3);
-    const isLayer07Ready = isLayerActive(7);
-    const isLayer08Ready = isLayerActive(8);
-    const isLayer09Ready = isLayerActive(9);
 
     const hasRiskScore =
       summary?.metrics?.overall_risk_score !== null &&
@@ -152,80 +178,6 @@ export function useDashboardData(): UseDashboardResult {
         source: summary || isLayer03Ready ? 'backend' : 'unavailable',
         href: '/packet-analysis',
       },
-      {
-        id: 'anomalies',
-        label: 'AI Anomalies',
-        value: summary ? summary.metrics.ai_anomalies : null,
-        status: summary
-          ? (summary.metrics.ai_anomalies > 0 ? 'WARNING' : 'ONLINE')
-          : isLayer08Ready
-            ? 'ONLINE'
-            : 'NOT INITIALIZED',
-        statusLabel: summary
-          ? (summary.metrics.ai_anomalies > 0
-              ? `${summary.metrics.ai_anomalies} FLAGGED`
-              : (summary.ml_engine_status?.active_model_id ? 'INFERENCE READY' : 'ONLINE'))
-          : isLayer08Ready
-            ? 'INFERENCE READY'
-            : 'MODEL NOT INITIALIZED',
-        icon: BrainCircuit,
-        source: summary || isLayer08Ready ? 'backend' : 'unavailable',
-        href: '/ai-anomalies',
-      },
-      {
-        id: 'drift',
-        label: 'Security Drift Events',
-        value: summary ? summary.metrics.drift_events : null,
-        status: summary
-          ? (summary.metrics.drift_events > 0 ? 'WARNING' : 'ONLINE')
-          : isLayer07Ready
-            ? 'ONLINE'
-            : 'NOT INITIALIZED',
-        statusLabel: summary
-          ? `${summary.metrics.drift_events} DRIFTING`
-          : isLayer07Ready
-            ? '0 DRIFTING'
-            : 'ENGINE NOT INITIALIZED',
-        icon: GitCompare,
-        source: summary || isLayer07Ready ? 'backend' : 'unavailable',
-        href: '/security-drift',
-      },
-      {
-        id: 'vulnerabilities',
-        label: 'Critical Vulnerabilities',
-        value: summary ? summary.metrics.vulnerabilities_critical : null,
-        status: summary
-          ? (summary.metrics.vulnerabilities_critical > 0 ? 'CRITICAL' : 'ONLINE')
-          : isLayer09Ready
-            ? 'ONLINE'
-            : 'NOT INITIALIZED',
-        statusLabel: summary
-          ? `${summary.metrics.vulnerabilities_critical} CRITICAL`
-          : isLayer09Ready
-            ? '0 CRITICAL'
-            : 'ENGINE NOT INITIALIZED',
-        icon: ShieldAlert,
-        source: summary || isLayer09Ready ? 'backend' : 'unavailable',
-        href: '/vulnerabilities',
-      },
-      {
-        id: 'capture',
-        label: 'Capture Status',
-        value: null,
-        status: summary
-          ? (summary.metrics.capture_status === 'READY' ? 'READY' : 'INACTIVE')
-          : isLayer03Ready
-            ? 'READY'
-            : 'NOT INITIALIZED',
-        statusLabel: summary
-          ? (summary.metrics.capture_status === 'READY' ? 'PCAP UPLOAD READY' : summary.metrics.capture_status)
-          : isLayer03Ready
-            ? 'PCAP UPLOAD READY'
-            : undefined,
-        icon: Activity,
-        source: summary || isLayer03Ready ? 'backend' : 'unavailable',
-        href: '/live-monitor',
-      },
     ];
 
     // Protocols
@@ -238,6 +190,25 @@ export function useDashboardData(): UseDashboardResult {
       if (entries.length > 0) {
         protocols = entries;
       }
+    }
+
+    // AI Traffic Classification Breakdown
+    let trafficClassification: { type: string; count: number }[] | null = null;
+    if (trafficSummary && trafficSummary.distribution && Object.keys(trafficSummary.distribution).length > 0) {
+      trafficClassification = Object.entries(trafficSummary.distribution).map(([type, count]) => ({
+        type,
+        count,
+      }));
+    } else if (trafficSummary && trafficSummary.total_classified > 0) {
+      trafficClassification = [
+        { type: 'VOIP', count: trafficSummary.voip_count || 0 },
+        { type: 'WHATSAPP', count: trafficSummary.whatsapp_count || 0 },
+        { type: 'EMAIL', count: trafficSummary.email_count || 0 },
+        { type: 'VIDEO', count: trafficSummary.video_streaming_count || 0 },
+        { type: 'WEB', count: trafficSummary.web_browsing_count || 0 },
+        { type: 'ICMP', count: trafficSummary.icmp_count || 0 },
+        { type: 'OTHER', count: trafficSummary.other_count || trafficSummary.generic_count || 0 },
+      ].filter((x) => x.count > 0);
     }
 
     // Vulnerabilities
@@ -294,8 +265,12 @@ export function useDashboardData(): UseDashboardResult {
       saActivity,
       events,
       summary,
+      trafficSummary,
+      metadataSummary,
+      fingerprintCount,
+      trafficClassification,
       loading,
       refetch: fetchSummary,
     };
-  }, [summary, loading, fetchSummary, status]);
+  }, [summary, trafficSummary, metadataSummary, fingerprintCount, loading, fetchSummary, status]);
 }

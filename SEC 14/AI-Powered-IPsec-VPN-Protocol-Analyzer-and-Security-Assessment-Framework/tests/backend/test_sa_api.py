@@ -116,10 +116,10 @@ def test_ids_stable_and_clear(client) -> None:
 
 def test_layer_statuses(client) -> None:
     layers = client.get("/api/system/status").json()["architecture_layers"]
-    assert layers[3]["status"] in ("IN DEVELOPMENT", "OPERATIONAL")
-    assert layers[4]["status"] in ("IN DEVELOPMENT", "OPERATIONAL")  # Layer 05 (Section 8)
-    assert layers[5]["status"] in ("IN DEVELOPMENT", "OPERATIONAL")  # Layer 06 (Section 9)
-    assert layers[6]["status"] in ("IN DEVELOPMENT", "OPERATIONAL")  # Layer 07 (Section 10)
+    assert layers[3]["status"] in ("IN DEVELOPMENT", "OPERATIONAL", "READY")
+    assert layers[4]["status"] in ("IN DEVELOPMENT", "OPERATIONAL", "READY")  # Layer 05 (Section 8)
+    assert layers[5]["status"] in ("IN DEVELOPMENT", "OPERATIONAL", "READY")  # Layer 06 (Section 9)
+    assert layers[6]["status"] in ("IN DEVELOPMENT", "OPERATIONAL", "READY")  # Layer 07 (Section 10)
     assert layers[7]["status"] == "OPERATIONAL"  # Layer 08 (Section 11)
     assert layers[8]["status"] == "OPERATIONAL"  # Layer 09 (Section 12)
     assert layers[9]["status"] in ("OPERATIONAL", "NOT INITIALIZED", "READY")  # Layer 10

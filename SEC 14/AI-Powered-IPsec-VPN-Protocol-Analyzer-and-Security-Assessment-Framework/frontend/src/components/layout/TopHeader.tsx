@@ -3,6 +3,8 @@ import { Menu } from 'lucide-react';
 import { PROJECT_NAME } from '@/config/branding';
 import { NotificationsButton } from './NotificationsButton';
 import { SystemStatusCluster } from './SystemStatusCluster';
+import { ThemeToggle } from './ThemeToggle';
+import { UserMenu } from './UserMenu';
 
 interface TopHeaderProps {
   onOpenNavigation: () => void;
@@ -33,8 +35,10 @@ export function TopHeader({ onOpenNavigation }: TopHeaderProps) {
 
       <SystemStatusCluster />
 
-      <div className="ml-auto flex items-center gap-1 xl:ml-2">
+      <div className="ml-auto flex items-center gap-2 xl:ml-2">
+        <ThemeToggle />
         <NotificationsButton />
+        <UserMenu />
       </div>
     </header>
   );

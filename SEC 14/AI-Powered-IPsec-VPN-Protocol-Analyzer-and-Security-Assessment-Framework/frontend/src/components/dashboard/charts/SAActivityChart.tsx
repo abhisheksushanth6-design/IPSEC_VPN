@@ -20,7 +20,7 @@ export const SA_STATE_ORDER: SAChartState[] = [
 export function SAActivityChart({ data }: SAActivityChartProps) {
   if (!data) {
     return (
-      <EmptyChartState detail="Security Association states appear once the SA Lifecycle Engine is implemented." />
+      <EmptyChartState detail="Security Association states appear once the SA & Protocol State Engine is active." />
     );
   }
   if (data.length === 0) {

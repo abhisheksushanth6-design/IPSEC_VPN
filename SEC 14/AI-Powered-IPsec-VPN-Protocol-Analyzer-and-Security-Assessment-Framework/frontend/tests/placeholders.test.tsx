@@ -1,22 +1,26 @@
-import { describe, expect, it, beforeEach } from 'vitest';
-import { screen } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import { Shield } from 'lucide-react';
 
-import { mockBackendOnline, renderAppAt } from './renderApp';
-
-const ANALYSIS_ROUTES = [
-  '/risk-assessment',
-];
+import { ModulePlaceholder } from '@/components/ui/ModulePlaceholder';
 
 describe('module placeholders', () => {
-  beforeEach(() => {
-    mockBackendOnline();
-  });
+  it('renders module not initialized state when instantiated', () => {
+    render(
+      <MemoryRouter>
+        <ModulePlaceholder
+          title="Test Module"
+          description="Test description for placeholder module"
+          icon={Shield}
+        />
+      </MemoryRouter>
+    );
 
-  it.each(ANALYSIS_ROUTES)('%s states that the module is not initialized', async (route) => {
-    renderAppAt(route);
     expect(
-      await screen.findByRole('heading', { name: /module not initialized/i }),
+      screen.getByRole('heading', { name: /module not initialized/i }),
     ).toBeInTheDocument();
     expect(screen.getAllByText('NOT INITIALIZED').length).toBeGreaterThan(0);
+    expect(screen.getByText('Test Module')).toBeInTheDocument();
   });
 });

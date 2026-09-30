@@ -12,23 +12,19 @@ LOCKED_SEQUENCE = [
     (1, "IPsec VPN Test Environment", LayerStatus.OPERATIONAL),
     (2, "Packet Capture & Data Collection", LayerStatus.OPERATIONAL),
     (3, "Packet & Protocol Analysis", LayerStatus.OPERATIONAL),
-    (4, "Security State & SA Lifecycle Engine", LayerStatus.OPERATIONAL),
+    (4, "Security Association & Protocol State Analysis", LayerStatus.OPERATIONAL),
     (5, "Feature Extraction & Engineering", LayerStatus.OPERATIONAL),
-    (6, "Session Fingerprinting & Baseline Profiling", LayerStatus.OPERATIONAL),
-    (7, "Security Drift Detection", LayerStatus.OPERATIONAL),
-    (8, "AI / ML Anomaly Detection Engine", LayerStatus.OPERATIONAL),
-    (9, "Security Rule & Vulnerability Engine", LayerStatus.OPERATIONAL),
-    (10, "Risk Assessment & Decision Engine", LayerStatus.OPERATIONAL),
-    (11, "Security Databases (SQLite)", LayerStatus.OPERATIONAL),
-    (12, "Backend & API (FastAPI)", LayerStatus.OPERATIONAL),
-    (13, "Web Dashboard", LayerStatus.OPERATIONAL),
-    (14, "Report Generation (PDF)", LayerStatus.OPERATIONAL),
+    (6, "IPsec Session Fingerprinting", LayerStatus.OPERATIONAL),
+    (7, "AI-Based Protocol & Traffic Classification", LayerStatus.OPERATIONAL),
+    (8, "Security Assessment Engine", LayerStatus.OPERATIONAL),
+    (9, "Risk Assessment & Decision Engine", LayerStatus.OPERATIONAL),
+    (10, "Dashboard & Report Generation", LayerStatus.OPERATIONAL),
 ]
 
 
-def test_exactly_fourteen_layers() -> None:
-    assert TOTAL_LAYERS == 14
-    assert len(ARCHITECTURE_LAYERS) == 14
+def test_exactly_ten_layers() -> None:
+    assert TOTAL_LAYERS == 10
+    assert len(ARCHITECTURE_LAYERS) == 10
 
 
 def test_exact_sequence_names_and_statuses() -> None:
@@ -37,9 +33,9 @@ def test_exact_sequence_names_and_statuses() -> None:
 
 
 def test_numbers_are_contiguous_and_unique() -> None:
-    assert [l.number for l in ARCHITECTURE_LAYERS] == list(range(1, 15))
-    assert len({l.name for l in ARCHITECTURE_LAYERS}) == 14
-    assert len({l.package for l in ARCHITECTURE_LAYERS}) == 14
+    assert [l.number for l in ARCHITECTURE_LAYERS] == list(range(1, 11))
+    assert len({l.name for l in ARCHITECTURE_LAYERS}) == 10
+    assert len({l.package for l in ARCHITECTURE_LAYERS}) == 10
 
 
 def test_every_layer_has_a_description() -> None:
@@ -48,7 +44,7 @@ def test_every_layer_has_a_description() -> None:
 
 
 def test_layer_lookup() -> None:
-    assert layer_by_number(8).name == "AI / ML Anomaly Detection Engine"
+    assert layer_by_number(7).name == "AI-Based Protocol & Traffic Classification"
 
 
 def test_api_serves_the_locked_sequence(client) -> None:
@@ -58,5 +54,9 @@ def test_api_serves_the_locked_sequence(client) -> None:
     layer_map = {l["number"]: l["status"] for l in payload["architecture_layers"]}
     assert layer_map[1] in ("READY", "WARNING", "ERROR", "NOT INITIALIZED")
     assert layer_map[2] in ("READY", "CAPTURING", "ERROR", "NOT INITIALIZED")
+    assert layer_map[3] in ("READY", "OPERATIONAL", "NOT INITIALIZED")
+    assert layer_map[4] in ("READY", "OPERATIONAL", "NOT INITIALIZED")
+    assert layer_map[5] in ("READY", "OPERATIONAL", "NOT INITIALIZED")
+    assert layer_map[6] in ("READY", "OPERATIONAL", "NOT INITIALIZED")
     assert layer_map[10] in ("READY", "OPERATIONAL", "NOT INITIALIZED")
-    assert payload["total_layers"] == 14
+    assert payload["total_layers"] == 10

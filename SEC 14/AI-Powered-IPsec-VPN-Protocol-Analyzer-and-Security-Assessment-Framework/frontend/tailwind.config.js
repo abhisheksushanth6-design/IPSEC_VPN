@@ -5,12 +5,14 @@ const token = (name) => `rgb(var(${name}) / <alpha-value>)`;
 
 export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
+  darkMode: ['class', '[data-theme="dark"]'],
   theme: {
     extend: {
       colors: {
         background: token('--color-background'),
         surface: token('--color-surface'),
         elevated: token('--color-elevated'),
+        'secondary-surface': token('--color-secondary-surface'),
         border: token('--color-border'),
         primary: token('--color-text-primary'),
         secondary: token('--color-text-secondary'),

@@ -11,15 +11,15 @@ const ERROR_TITLES: Record<string, string> = {
   PACKET_DATA_UNAVAILABLE: 'Packet data unavailable', SESSION_DATA_UNAVAILABLE: 'Session data unavailable', DATABASE_ERROR: 'Database error',
 };
 
-/** Layer 04 — Security State & SA Lifecycle. All state and events come from the backend engine. */
+/** Layer 04 — SA & Protocol State Analysis. All state and parameters come from the backend engine. */
 export function SALifecyclePage() {
   const [params] = useSearchParams();
   const controller = useSALifecycle(params.get('sa'));
   const badge = saEngineBadge(controller.status?.state, controller.status !== null || controller.statusLoading);
   return (
     <PageContainer>
-      <PageHeader title="Security State & SA Lifecycle" description="Track observed IPsec Security Associations and their lifecycle from negotiation through active operation and termination."
-        status={controller.statusLoading ? 'INITIALIZING' : badge.status} statusLabel={controller.statusLoading ? 'LOADING' : badge.label} breadcrumbs={[{ label: 'Security Analysis' }, { label: 'SA Lifecycle' }]} />
+      <PageHeader title="SA & Protocol State Analysis" description="Inspect Security Association (SA) characteristics, encryption and authentication parameters, and protocol state transitions."
+        status={controller.statusLoading ? 'INITIALIZING' : badge.status} statusLabel={controller.statusLoading ? 'LOADING' : badge.label} breadcrumbs={[{ label: 'Security Analysis' }, { label: 'SA & Protocol State' }]} />
       <SAToolbar controller={controller} />
       {controller.error ? (
         <div role="alert" className="flex items-start justify-between gap-3 rounded border border-danger/30 bg-danger/5 px-4 py-3">

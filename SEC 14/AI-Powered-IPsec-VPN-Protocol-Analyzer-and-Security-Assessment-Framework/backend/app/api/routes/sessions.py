@@ -7,6 +7,10 @@ from typing import Literal, Optional
 from fastapi import APIRouter, Query
 
 from app.api.routes.packets import ERROR_RESPONSES
+from app.schemas.session_fingerprint import (
+    SessionFingerprintReportSchema,
+    VPNSessionFingerprintSchema,
+)
 from app.schemas.sessions import PacketSessionSchema, SessionDetailSchema, SessionPageSchema, SessionStatusSchema
 from app.services.session_service import session_service
 
@@ -51,6 +55,40 @@ def clear() -> SessionStatusSchema:
 @router.get("/for-packet/{packet_id}", response_model=PacketSessionSchema, responses=ERROR_RESPONSES, summary="Session associated with a packet")
 def for_packet(packet_id: str) -> PacketSessionSchema:
     return session_service.for_packet(packet_id)
+
+
+@router.get("/fingerprints", response_model=SessionFingerprintReportSchema, summary="List correlated sessions with deterministic fingerprints")
+def list_session_fingerprints() -> SessionFingerprintReportSchema:
+    from app.layers.layer04_sa_lifecycle.service import get_layer04_service
+    from app.services.packet_service import packet_service
+
+    capture_id = packet_service.capture_id or "default"
+    packets = packet_service.all_packets()
+    svc = get_layer04_service()
+    sessions = svc.correlate_capture(packets, capture_id=capture_id)
+    return SessionFingerprintReportSchema(
+        capture_id=capture_id,
+        total_sessions=len(sessions),
+        sessions=[VPNSessionFingerprintSchema.model_validate(s) for s in sessions],
+        status=svc.get_layer_status(),
+    )
+
+
+@router.get("/fingerprints/{session_id}", response_model=VPNSessionFingerprintSchema, responses=ERROR_RESPONSES, summary="Get session fingerprint details")
+def get_session_fingerprint_detail(session_id: str) -> VPNSessionFingerprintSchema:
+    from app.layers.layer04_sa_lifecycle.service import get_layer04_service
+    from app.services.packet_service import PacketServiceError, packet_service
+
+    svc = get_layer04_service()
+    s = svc.get_session_by_id(session_id)
+    if not s:
+        capture_id = packet_service.capture_id or "default"
+        packets = packet_service.all_packets()
+        svc.correlate_capture(packets, capture_id=capture_id)
+        s = svc.get_session_by_id(session_id)
+    if not s:
+        raise PacketServiceError("SESSION_NOT_FOUND", f"No session found with ID or signature '{session_id}'.", 404)
+    return VPNSessionFingerprintSchema.model_validate(s)
 
 
 @router.get("/{session_id}", response_model=SessionDetailSchema, responses=ERROR_RESPONSES, summary="Session detail")

@@ -40,6 +40,12 @@ export const sessionService = {
   fetchSessionForPacket(packetId: string, signal?: AbortSignal): Promise<PacketSessionLink> {
     return requestJson<PacketSessionLink>(`/api/sessions/for-packet/${encodeURIComponent(packetId)}`, signal);
   },
+  fetchFingerprints(signal?: AbortSignal): Promise<import('@/types').SessionFingerprintReport> {
+    return requestJson<import('@/types').SessionFingerprintReport>('/api/sessions/fingerprints', signal);
+  },
+  fetchFingerprint(id: string, signal?: AbortSignal): Promise<import('@/types').VPNSessionFingerprint> {
+    return requestJson<import('@/types').VPNSessionFingerprint>(`/api/sessions/fingerprints/${encodeURIComponent(id)}`, signal);
+  },
   discover(): Promise<SessionEngineStatus> {
     return mutate<SessionEngineStatus>('/api/sessions/discover', { method: 'POST' });
   },

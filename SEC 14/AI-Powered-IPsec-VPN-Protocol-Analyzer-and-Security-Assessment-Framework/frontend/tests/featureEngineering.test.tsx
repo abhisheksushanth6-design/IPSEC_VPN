@@ -196,6 +196,14 @@ describe('feature engineering page', () => {
     renderAppAt('/feature-engineering?entity_type=SESSION&entity_id=SESSION-1');
 
     expect(await screen.findByText('FEATURE EXTRACTION NOT RUN')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+
+    const extractBtn = await screen.findByRole('button', { name: /Extract features/i });
+    expect(extractBtn).toBeEnabled();
+    await userEvent.click(extractBtn);
+
+    expect(await screen.findByRole('region', { name: /Feature Summary/i })).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('shows summary counts from the vector metadata', async () => {

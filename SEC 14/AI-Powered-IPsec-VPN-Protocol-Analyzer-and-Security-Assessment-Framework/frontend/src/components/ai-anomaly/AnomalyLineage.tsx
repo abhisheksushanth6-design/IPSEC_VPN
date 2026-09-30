@@ -34,8 +34,8 @@ export const AnomalyLineage: React.FC<AnomalyLineageProps> = ({
     {
       step: 3,
       layer: 'Layer 03',
-      name: 'SA Lifecycle',
-      desc: 'IKE & Child SA tracking',
+      name: 'SA & Protocol State',
+      desc: 'IKE & Child SA state tracking',
       status: 'complete',
     },
     {

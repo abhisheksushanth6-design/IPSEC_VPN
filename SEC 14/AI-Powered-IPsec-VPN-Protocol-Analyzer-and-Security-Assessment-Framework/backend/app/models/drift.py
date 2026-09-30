@@ -62,7 +62,7 @@ class FeatureDriftRow(Base):
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    analysis_id: Mapped[str] = mapped_column(String(64), ForeignKey("drift_analyses.id"), nullable=False)
+    analysis_id: Mapped[str] = mapped_column(String(64), ForeignKey("drift_analyses.id", ondelete="CASCADE"), nullable=False)
     feature_name: Mapped[str] = mapped_column(String(128), nullable=False)
     display_name: Mapped[str] = mapped_column(String(128), nullable=False)
     category: Mapped[str] = mapped_column(String(64), nullable=False)

@@ -37,6 +37,7 @@ class IPLayerSchema(_Model):
     fragment_offset: Optional[int] = None
     traffic_class: Optional[int] = None
     flow_label: Optional[int] = None
+    extension_headers: list[str] = []
 
 
 class TCPLayerSchema(_Model):
@@ -69,11 +70,35 @@ class ICMPLayerSchema(_Model):
 TransportSchema = Union[TCPLayerSchema, UDPLayerSchema, ICMPLayerSchema]
 
 
+class IKETransformSchema(_Model):
+    type_id: int
+    type_name: str
+    transform_id: int
+    transform_name: str
+    key_length: Optional[int] = None
+
+
+class IKEProposalSchema(_Model):
+    proposal_number: int
+    protocol_id: int
+    protocol_name: str
+    spi: Optional[str] = None
+    transforms: list[IKETransformSchema] = []
+    encryption_algorithms: list[str] = []
+    integrity_algorithms: list[str] = []
+    prf_algorithms: list[str] = []
+    dh_groups: list[str] = []
+    esn: Optional[str] = None
+
+
 class IKEPayloadSchema(_Model):
     type_number: int
     name: str
     length: int
     critical: bool
+    notify_type: Optional[int] = None
+    notify_name: Optional[str] = None
+    proposals: list[IKEProposalSchema] = []
 
 
 class IKELayerSchema(_Model):
@@ -90,6 +115,8 @@ class IKELayerSchema(_Model):
     payloads: list[IKEPayloadSchema]
     payload_count: int
     encrypted_payload: bool
+    proposals: list[IKEProposalSchema] = []
+
 
 
 class ESPLayerSchema(_Model):
@@ -118,6 +145,7 @@ class IPsecAnalysisSchema(_Model):
     ike: Optional[IKELayerSchema] = None
     esp: Optional[ESPLayerSchema] = None
     ah: Optional[AHLayerSchema] = None
+    encapsulation_mode: str = "TUNNEL"
 
 
 class RawDataSchema(_Model):
@@ -229,3 +257,64 @@ class PacketPageSchema(BaseModel):
 class PacketErrorSchema(BaseModel):
     error: str
     message: str
+
+
+class IPsecStreamSummarySchema(_Model):
+    spi: str
+    protocol: Literal["ESP", "AH"]
+    source_ip: str
+    destination_ip: str
+    packet_count: int
+    total_bytes: int
+    min_sequence: int
+    max_sequence: int
+    sequence_gaps: int
+    sequence_replays: int
+    sequence_zero_count: int
+    nat_traversal: bool = False
+    encapsulation_mode: str = "TUNNEL"
+
+
+class TunnelEndpointSummarySchema(_Model):
+    local_endpoint: str
+    remote_endpoint: str
+    protocol: str
+    ike_sa_count: int
+    child_sa_spis: list[str] = []
+    total_packets: int = 0
+    total_bytes: int = 0
+    encapsulation_mode: str = "TUNNEL"
+
+
+class ProtocolAnomalySchema(_Model):
+    id: str
+    anomaly_type: str
+    severity: Literal["LOW", "MEDIUM", "HIGH", "CRITICAL"]
+    packet_number: Optional[int] = None
+    spi: Optional[str] = None
+    source_ip: Optional[str] = None
+    destination_ip: Optional[str] = None
+    description: str
+    evidence: dict = {}
+
+
+class IKENegotiationAnalysisSchema(BaseModel):
+    total_ike_messages: int = 0
+    exchanges: list[dict] = []
+    proposals: list[dict] = []
+    initiator_spis: list[str] = []
+    responder_spis: list[str] = []
+
+
+class ProtocolAnalysisReportSchema(BaseModel):
+    capture_id: Optional[str] = None
+    total_packets_analyzed: int = 0
+    ipsec_packets: int = 0
+    ike_summary: IKENegotiationAnalysisSchema
+    ipsec_streams: list[IPsecStreamSummarySchema] = []
+    tunnel_endpoints: list[TunnelEndpointSummarySchema] = []
+    anomalies: list[ProtocolAnomalySchema] = []
+    protocol_counts: dict[str, int] = {}
+    analysis_timestamp: str
+    status: str = "READY"
+

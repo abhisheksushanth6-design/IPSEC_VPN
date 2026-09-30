@@ -11,6 +11,7 @@ import {
 } from '@/components/architecture';
 import { PageContainer } from '@/components/layout';
 import { EmptyState, SkeletonCard } from '@/components/states';
+import { StatusBadge } from '@/components/status';
 import { PageHeader, Panel } from '@/components/ui';
 import { buildArchitectureLayers } from '@/config/architecture';
 import { PROJECT_NAME } from '@/config/branding';
@@ -18,13 +19,29 @@ import { useSystemState } from '@/context/SystemStateContext';
 import type { ArchitectureLayerDetail as LayerDetail } from '@/types';
 
 /**
- * 14-layer architecture visualization. Layer names, statuses and descriptions
+ * 10-layer functional architecture visualization. Layer names, statuses and descriptions
  * come from `/api/system/status`; the page attaches presentation metadata
  * and never invents runtime figures.
  */
 export function ArchitecturePage() {
-  const { state, status, refresh } = useSystemState();
+  const { state, reachable, status, refresh } = useSystemState();
   const [selectedNumber, setSelectedNumber] = useState<number | null>(null);
+
+  const dataSource = useMemo(() => {
+    if (state === 'loading') {
+      return { kind: 'INITIALIZING' as const, label: 'Connecting to Backend...' };
+    }
+    if (state === 'error' || !reachable) {
+      return { kind: 'BACKEND OFFLINE' as const, label: 'Backend Offline' };
+    }
+    if ((status as any)?.cached || (status as any)?.is_cached) {
+      return { kind: 'STANDALONE' as const, label: 'Cached Data' };
+    }
+    if (status?.application_mode === 'DEMO') {
+      return { kind: 'DEMO' as const, label: 'Fallback / Demo Data' };
+    }
+    return { kind: 'LIVE' as const, label: 'Live Backend Data' };
+  }, [state, reachable, status]);
 
   const layers = useMemo(
     () => (state === 'ready' ? buildArchitectureLayers(status?.architecture_layers) : null),
@@ -41,19 +58,22 @@ export function ArchitecturePage() {
   return (
     <PageContainer>
       <PageHeader
-        title="14-Layer System Architecture"
+        title="10-Layer System Architecture"
         description={`Technical architecture of the ${PROJECT_NAME}.`}
         status={layers ? 'ARCHITECTURE DEFINED' : state === 'loading' ? 'INITIALIZING' : 'NOT INITIALIZED'}
         statusLabel={layers ? undefined : state === 'loading' ? undefined : 'ARCHITECTURE DATA UNAVAILABLE'}
         breadcrumbs={[{ label: 'System' }, { label: 'Architecture' }]}
         actions={
-          <Link
-            to="/overview"
-            className="inline-flex items-center gap-2 rounded border border-border px-3 py-1.5 text-sm text-secondary transition-colors hover:border-info hover:text-info"
-          >
-            <ArrowLeft aria-hidden className="h-3.5 w-3.5" />
-            Back to Overview
-          </Link>
+          <div className="flex items-center gap-3">
+            <StatusBadge status={dataSource.kind} label={dataSource.label} size="sm" />
+            <Link
+              to="/overview"
+              className="inline-flex items-center gap-2 rounded border border-border px-3 py-1.5 text-sm text-secondary transition-colors hover:border-info hover:text-info"
+            >
+              <ArrowLeft aria-hidden className="h-3.5 w-3.5" />
+              Back to Overview
+            </Link>
+          </div>
         }
       />
 
@@ -62,9 +82,10 @@ export function ArchitecturePage() {
           The framework is designed to process IPsec VPN activity through a layered
           security-analysis pipeline: from test-environment generation and packet
           collection, through protocol analysis and behavioural detection, to risk
-          assessment, dashboard visualization and security reporting. This page
-          describes the intended architecture; the analysis layers are not yet
-          running.
+          assessment, dashboard visualization and security reporting.
+          {layers
+            ? ' Layer implementation counters and operational states are dynamically verified against backend contract data.'
+            : ' This page describes the intended architecture; analysis layer metadata is currently unavailable.'}
         </p>
       </Panel>
 

@@ -473,6 +473,142 @@ class EnvironmentService:
             strongswan=strongswan_evidence,
         )
 
+    def get_testbed_profiles(self) -> list[dict[str, Any]]:
+        """Return canonical SIH 26160 testbed profile configurations."""
+        return [
+            {
+                "id": "PROFILE-01-TUNNEL-AES256GCM-PFS-IPV4",
+                "name": "Standard Secure Gateway (Tunnel, AES-256-GCM, DH19, PFS, IPv4)",
+                "mode": "TUNNEL",
+                "encryption": "AES-256-GCM",
+                "integrity": "AEAD",
+                "dh_group": "Group 19 (256-bit ECP)",
+                "pfs_enabled": True,
+                "ip_version": 4,
+                "traffic_type": "WEB_BROWSING",
+                "security_rating": "HIGH",
+                "compliance_standard": "NIST SP 800-77 Rev 1 / CNSA",
+                "description": "Standard high-security site-to-site IPsec tunnel utilizing modern AEAD encryption and ephemeral elliptic curve Diffie-Hellman.",
+            },
+            {
+                "id": "PROFILE-02-TRANSPORT-AES128CBC-PFS-IPV4",
+                "name": "Host-to-Host Voice Tunnel (Transport, AES-128-CBC+HMAC, DH14, PFS, IPv4)",
+                "mode": "TRANSPORT",
+                "encryption": "AES-128-CBC",
+                "integrity": "HMAC-SHA2-256",
+                "dh_group": "Group 14 (2048-bit MODP)",
+                "pfs_enabled": True,
+                "ip_version": 4,
+                "traffic_type": "VOIP",
+                "security_rating": "ACCEPTABLE",
+                "compliance_standard": "RFC 8221 Enterprise Baseline",
+                "description": "Transport mode end-to-end IPsec session carrying isochronous VoIP RTP streams with 20ms cadence.",
+            },
+            {
+                "id": "PROFILE-03-TUNNEL-AES128GCM-NOPFS-IPV4",
+                "name": "Streaming Gateway (Tunnel, AES-128-GCM, DH14, PFS Disabled, IPv4)",
+                "mode": "TUNNEL",
+                "encryption": "AES-128-GCM",
+                "integrity": "AEAD",
+                "dh_group": "Group 14 (2048-bit MODP)",
+                "pfs_enabled": False,
+                "ip_version": 4,
+                "traffic_type": "VIDEO_STREAMING",
+                "security_rating": "MODERATE",
+                "compliance_standard": "Standard Tunnel (PFS Warning)",
+                "description": "Fast tunnel with hardware-accelerated AES-GCM streaming HLS video chunks; lacks phase 2 PFS rekeying.",
+            },
+            {
+                "id": "PROFILE-04-TRANSPORT-AES256CBC-PFS-IPV6",
+                "name": "Next-Gen Enterprise IPv6 (Transport, AES-256-CBC+HMAC, DH20, PFS, IPv6)",
+                "mode": "TRANSPORT",
+                "encryption": "AES-256-CBC",
+                "integrity": "HMAC-SHA2-512",
+                "dh_group": "Group 20 (384-bit ECP)",
+                "pfs_enabled": True,
+                "ip_version": 6,
+                "traffic_type": "EMAIL",
+                "security_rating": "HIGH",
+                "compliance_standard": "IPv6 RFC 4301 / CNSA Suite",
+                "description": "Transport mode over pure IPv6 network with hop-by-hop and routing headers, carrying batch email transfers.",
+            },
+            {
+                "id": "PROFILE-05-TUNNEL-3DESCBC-NOPFS-IPV4",
+                "name": "Legacy Deprecated Baseline (Tunnel, 3DES-CBC+MD5, DH2, PFS Disabled, IPv4)",
+                "mode": "TUNNEL",
+                "encryption": "3DES-CBC",
+                "integrity": "HMAC-MD5-96",
+                "dh_group": "Group 2 (1024-bit MODP)",
+                "pfs_enabled": False,
+                "ip_version": 4,
+                "traffic_type": "ICMP",
+                "security_rating": "CRITICAL_RISK",
+                "compliance_standard": "NON-COMPLIANT (Sweet32 Vulnerable)",
+                "description": "Legacy insecure tunnel configuration for demonstrating vulnerability detection, sweet32 exposure, and compliance rule violations.",
+            },
+            {
+                "id": "PROFILE-06-TUNNEL-AES256GCM-PFS-IPV6",
+                "name": "Government Critical Infrastructure (Tunnel, AES-256-GCM, DH21, PFS, IPv6)",
+                "mode": "TUNNEL",
+                "encryption": "AES-256-GCM",
+                "integrity": "AEAD",
+                "dh_group": "Group 21 (521-bit ECP)",
+                "pfs_enabled": True,
+                "ip_version": 6,
+                "traffic_type": "WEB_BROWSING",
+                "security_rating": "HIGH",
+                "compliance_standard": "CNSA 2.0 / Post-Quantum Transition",
+                "description": "Government-grade tunnel configuration utilizing 256-bit Galois/Counter Mode over IPv6 with maximum curve DH21.",
+            },
+        ]
+
+    def simulate_testbed_profile(self, profile_id: str) -> dict[str, Any]:
+        """Generate and ingest a synthetic traffic scenario representing the profile for demonstration."""
+        profiles = {p["id"]: p for p in self.get_testbed_profiles()}
+        if profile_id not in profiles:
+            raise ValueError(f"Unknown testbed profile '{profile_id}'")
+
+        prof = profiles[profile_id]
+        import synthetic_traffic_generator as STG
+        from app.layers.layer03_protocol_analysis import analyze_capture
+        from app.services.packet_service import packet_service
+
+        # Select traffic generator matching profile
+        ttype = prof["traffic_type"]
+        if ttype == "VOIP":
+            frames = STG.build_voip_traffic(count=40)
+        elif ttype == "EMAIL":
+            frames = STG.build_email_traffic(bulk_packets=30)
+        elif ttype == "VIDEO_STREAMING":
+            frames = STG.build_video_streaming_traffic(chunk_count=3, packets_per_chunk=20)
+        elif prof["mode"] == "TRANSPORT":
+            frames = STG.build_transport_mode_ah_frames(count=25)
+        elif prof["ip_version"] == 6:
+            frames = STG.build_ipv6_esp_with_ext_headers(count=25)
+        else:
+            frames = STG.build_voip_traffic(count=30)
+
+        pcap_bytes = STG.timed_pcap(frames)
+        capture_id = f"testbed_{profile_id[:16].lower()}"
+        report, results = analyze_capture(pcap_bytes, capture_id=capture_id)
+        packet_service.set_packets(results, capture_id=capture_id)
+
+        from app.services.session_service import session_service
+        session_service.discover()
+
+        return {
+            "status": "SIMULATED",
+            "profile_id": profile_id,
+            "profile_name": prof["name"],
+            "capture_id": capture_id,
+            "packets_generated": len(results),
+            "mode": prof["mode"],
+            "traffic_type": prof["traffic_type"],
+            "encryption": prof["encryption"],
+            "dh_group": prof["dh_group"],
+            "pfs_enabled": prof["pfs_enabled"],
+        }
+
 
 # Singleton instance accessor
 _service_instance: Optional[EnvironmentService] = None

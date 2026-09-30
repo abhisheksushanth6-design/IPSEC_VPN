@@ -1,3 +1,4 @@
+export { AITrafficDistributionChart } from './AITrafficDistributionChart';
 export { AnomalyTimelineChart } from './AnomalyTimelineChart';
 export { ProtocolDistributionChart } from './ProtocolDistributionChart';
 export { RiskTrendChart } from './RiskTrendChart';

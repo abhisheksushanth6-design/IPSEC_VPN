@@ -25,26 +25,26 @@ export function BaselineToolbar({
 }: BaselineToolbarProps) {
   const tabs = [
     {
-      key: 'baselines' as BaselineTabKey,
-      label: 'Baseline Profiles',
-      count: baselinesCount,
-      icon: Database,
-    },
-    {
       key: 'fingerprints' as BaselineTabKey,
       label: 'Session Fingerprints',
       count: fingerprintsCount,
       icon: Fingerprint,
     },
     {
-      key: 'compare_baseline' as BaselineTabKey,
-      label: 'Baseline vs Observed',
-      icon: Layers,
-    },
-    {
       key: 'compare_fingerprints' as BaselineTabKey,
       label: 'Compare Fingerprints',
       icon: GitCompare,
+    },
+    {
+      key: 'baselines' as BaselineTabKey,
+      label: 'Statistical Profiles',
+      count: baselinesCount,
+      icon: Database,
+    },
+    {
+      key: 'compare_baseline' as BaselineTabKey,
+      label: 'Profile vs Observed',
+      icon: Layers,
     },
   ];
 

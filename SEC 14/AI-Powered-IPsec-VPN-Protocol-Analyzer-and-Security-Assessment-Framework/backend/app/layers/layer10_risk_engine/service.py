@@ -18,9 +18,11 @@ from sqlalchemy.orm import Session
 
 from app.layers.layer10_risk_engine.evaluator import EvaluationInput, RiskEvaluator
 from app.layers.layer10_risk_engine.schemas import (
+    DECISION_TO_ALIAS,
     ContributingSignal,
     RiskAssessmentResponse,
     RiskEvidenceItem,
+    RiskExportResponse,
     RiskScoreBreakdown,
     RiskSummaryResponse,
 )
@@ -225,16 +227,37 @@ class RiskEngineService:
             except Exception as exc:
                 logger.warning("On-demand vulnerability evaluation deferred: %s", exc)
 
-        vulns_data = [
-            {
+        CONFIDENCE_MAP = {
+            "CRITICAL": 1.0,
+            "HIGH": 0.95,
+            "MEDIUM": 0.75,
+            "LOW": 0.5,
+            "INFO": 0.3,
+        }
+
+        vulns_data = []
+        for v in vuln_rows:
+            raw_c = getattr(v, "confidence", 1.0)
+            if isinstance(raw_c, (int, float)):
+                conf_val = float(raw_c)
+            elif str(raw_c).upper() in CONFIDENCE_MAP:
+                conf_val = CONFIDENCE_MAP[str(raw_c).upper()]
+            else:
+                try:
+                    conf_val = float(raw_c)
+                except (ValueError, TypeError):
+                    conf_val = 1.0
+
+            vulns_data.append({
                 "id": v.id,
                 "rule_id": v.rule_id,
                 "title": v.title,
                 "severity": v.severity,
+                "status": getattr(v, "status", "OPEN"),
+                "confidence": conf_val,
+                "recurrence_count": getattr(v, "occurrence_count", 1),
                 "affected_object_id": v.affected_object_id,
-            }
-            for v in vuln_rows
-        ]
+            })
 
         # 8. Assemble Evaluation Input
         eval_input = EvaluationInput(
@@ -498,6 +521,8 @@ class RiskEngineService:
                 overall_risk_score=None,
                 overall_risk_level=None,
                 decision=None,
+                decision_alias=None,
+                is_advisory=True,
                 data_quality=None,
                 assessed_sessions_count=0,
                 total_sessions_count=total_sessions,
@@ -515,6 +540,8 @@ class RiskEngineService:
             overall_risk_score=round(max_score, 1) if max_score is not None else latest_row.risk_score,
             overall_risk_level=latest_row.risk_level,
             decision=latest_row.decision,
+            decision_alias=DECISION_TO_ALIAS.get(latest_row.decision, "ALLOW"),
+            is_advisory=True,
             data_quality=latest_row.data_quality,
             assessed_sessions_count=assessed_sessions,
             total_sessions_count=total_sessions,
@@ -526,8 +553,92 @@ class RiskEngineService:
         )
 
     def get_layer_status(self, db: Optional[Session] = None) -> str:
-        """Return dynamic status of Layer 10 (OPERATIONAL when functional, READY when idle)."""
-        return "OPERATIONAL"
+        """Return dynamic status of Layer 10 based on database readiness and evaluator integrity."""
+        try:
+            if RiskEvaluator is None:
+                return "ERROR"
+            # Validate mathematical evaluator logic on dry-run input
+            dry_run = RiskEvaluator.evaluate(EvaluationInput(session_id="dry-run"))
+            if dry_run[0] != 0.0 or dry_run[1] != "LOW" or dry_run[2] != "ALLOW":
+                return "DEGRADED"
+
+            if db is not None:
+                # Ensure risk_assessments table exists and can be queried
+                db.scalar(select(func.count(RiskAssessmentRow.id)))
+            return "OPERATIONAL"
+        except Exception as exc:
+            logger.warning("Layer 10 Risk Engine status verification error: %s", exc)
+            return "ERROR"
+
+    def get_detailed_status(self, db: Optional[Session] = None) -> Dict[str, Any]:
+        """Return comprehensive machine-readable diagnostics for Layer 10."""
+        checks: Dict[str, Any] = {
+            "evaluator_loaded": RiskEvaluator is not None,
+            "dry_run_passed": False,
+            "database_connected": False,
+            "tables_verified": False,
+        }
+        try:
+            dry_run = RiskEvaluator.evaluate(EvaluationInput(session_id="health-check"))
+            checks["dry_run_passed"] = (dry_run[0] == 0.0 and dry_run[1] == "LOW" and dry_run[2] == "ALLOW")
+        except Exception as exc:
+            checks["dry_run_error"] = str(exc)
+
+        if db is not None:
+            try:
+                db.scalar(select(func.count(RiskAssessmentRow.id)))
+                checks["database_connected"] = True
+                checks["tables_verified"] = True
+            except Exception as exc:
+                checks["database_error"] = str(exc)
+
+        overall = "OPERATIONAL" if all(checks.get(k) for k in ("evaluator_loaded", "dry_run_passed", "database_connected", "tables_verified") if k in checks) else "DEGRADED"
+        return {
+            "layer_number": 10,
+            "layer_name": "Risk Assessment & Decision Engine",
+            "status": overall,
+            "is_advisory": True,
+            "checks": checks,
+        }
+
+    def get_assessment_by_id(
+        self, db: Session, assessment_id: str
+    ) -> Optional[RiskAssessmentResponse]:
+        """Retrieve a specific risk assessment by its unique record ID."""
+        row = db.scalar(
+            select(RiskAssessmentRow).where(RiskAssessmentRow.id == assessment_id)
+        )
+        if row is None:
+            return None
+        return self._row_to_response(row)
+
+    def export_assessments(
+        self,
+        db: Session,
+        session_id: Optional[str] = None,
+        limit: int = 200,
+    ) -> RiskExportResponse:
+        """Produce structured SIEM/SOAR/compliance JSON export of risk assessments."""
+        stmt = select(RiskAssessmentRow).order_by(RiskAssessmentRow.evaluated_at.desc())
+        if session_id:
+            stmt = stmt.where(RiskAssessmentRow.session_id == session_id)
+        stmt = stmt.limit(limit)
+
+        rows = db.scalars(stmt).all()
+        assessments = [self._row_to_response(r) for r in rows]
+
+        return RiskExportResponse(
+            export_version="1.0.0",
+            exported_at=_utc_now(),
+            total_assessments=len(assessments),
+            assessments=assessments,
+            metadata={
+                "filter_session_id": session_id,
+                "limit": limit,
+                "is_advisory": True,
+                "authoritative_source": "Layer 10 Risk Assessment & Decision Engine",
+            },
+        )
 
     def _row_to_response(self, row: RiskAssessmentRow) -> RiskAssessmentResponse:
         """Convert a database ORM row to typed Pydantic response schema."""
@@ -537,8 +648,38 @@ class RiskEngineService:
         avail_raw = json.loads(row.available_signals_json) if row.available_signals_json else []
         unavail_raw = json.loads(row.unavailable_signals_json) if row.unavailable_signals_json else []
 
-        signals = [ContributingSignal(**s) for s in signals_raw]
-        evidence = [RiskEvidenceItem(**e) for e in evidence_raw]
+        parsed_signals = []
+        for s in signals_raw:
+            if isinstance(s, dict):
+                src = s.get("source") or s.get("layer") or "LAYER_10_RISK_ENGINE"
+                contrib = float(s.get("contribution") or s.get("points") or 0.0)
+                reason = s.get("reason") or s.get("rule") or "Signal contribution"
+                parsed_signals.append(ContributingSignal(
+                    source=src,
+                    contribution=contrib,
+                    reason=reason,
+                    evidence_reference=s.get("evidence_reference"),
+                    confidence=s.get("confidence"),
+                    finding_status=s.get("finding_status"),
+                    recurrence_count=s.get("recurrence_count"),
+                ))
+        signals = parsed_signals
+        parsed_evidence = []
+        for e in evidence_raw:
+            if isinstance(e, dict):
+                src = e.get("source_layer") or "LAYER_09_VULNERABILITY_ENGINE"
+                ev_type = e.get("evidence_type") or "VULNERABILITY_FINDING"
+                ident = e.get("identifier") or e.get("finding_id") or "UNKNOWN"
+                summ = e.get("summary") or f"Evidence finding {ident}"
+                details = e.get("details") or {}
+                parsed_evidence.append(RiskEvidenceItem(
+                    source_layer=src,
+                    evidence_type=ev_type,
+                    identifier=ident,
+                    summary=summ,
+                    details=details,
+                ))
+        evidence = parsed_evidence
 
         breakdown = RiskScoreBreakdown(
             vulnerability_score=row.vulnerability_score,
@@ -548,15 +689,29 @@ class RiskEngineService:
             total_risk_score=row.risk_score,
         )
 
+        # Compute active severity summary from evidence items
+        sev_counts = {"CRITICAL": 0, "HIGH": 0, "MEDIUM": 0, "LOW": 0, "INFO": 0}
+        for e in evidence_raw:
+            if e.get("source_layer") == "LAYER_09_VULNERABILITY_ENGINE":
+                summ = e.get("summary", "")
+                if "STATUS: RESOLVED" not in summ and "STATUS: FALSE_POSITIVE" not in summ and "STATUS: SUPPRESSED" not in summ:
+                    for s in ("CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"):
+                        if f"[{s}]" in summ:
+                            sev_counts[s] += 1
+                            break
+
         return RiskAssessmentResponse(
             id=row.id,
             session_id=row.session_id,
             risk_score=row.risk_score,
             risk_level=row.risk_level,
             decision=row.decision,
+            decision_alias=DECISION_TO_ALIAS.get(row.decision, "ALLOW"),
+            is_advisory=True,
             data_quality=row.data_quality,
             confidence_score=row.confidence_score,
             breakdown=breakdown,
+            severity_summary=sev_counts,
             contributing_signals=signals,
             evidence=evidence,
             recommended_actions=recs_raw,
@@ -575,3 +730,14 @@ def get_risk_engine_service() -> RiskEngineService:
     if _risk_service is None:
         _risk_service = RiskEngineService()
     return _risk_service
+
+
+def get_layer_status(db: Optional[Session] = None) -> str:
+    """Convenience module-level function to check Layer 10 operational status."""
+    return get_risk_engine_service().get_layer_status(db)
+
+
+def get_detailed_status(db: Optional[Session] = None) -> Dict[str, Any]:
+    """Convenience module-level function to get full Layer 10 diagnostic status."""
+    return get_risk_engine_service().get_detailed_status(db)
+

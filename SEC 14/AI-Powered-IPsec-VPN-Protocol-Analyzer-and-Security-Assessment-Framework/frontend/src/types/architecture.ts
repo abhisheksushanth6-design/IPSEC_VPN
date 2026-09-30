@@ -9,9 +9,9 @@ export type ArchitectureStatus = ModuleStatus;
 /** Visual grouping only. Never replaces the fourteen official layers. */
 export type ArchitectureCategory =
   | 'DATA GENERATION & COLLECTION'
-  | 'PROTOCOL & SECURITY ANALYSIS'
-  | 'INTELLIGENCE & DETECTION'
-  | 'PLATFORM FOUNDATION'
+  | 'PROTOCOL & SESSION ANALYSIS'
+  | 'FEATURE & FINGERPRINTING'
+  | 'AI CLASSIFICATION & ASSESSMENT'
   | 'PRESENTATION & REPORTING';
 
 export interface ArchitectureCategoryDefinition {

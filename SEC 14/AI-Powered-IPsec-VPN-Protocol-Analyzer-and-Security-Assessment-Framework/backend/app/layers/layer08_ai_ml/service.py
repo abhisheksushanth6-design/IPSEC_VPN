@@ -110,6 +110,17 @@ class AIAnomalyService:
             available_sessions_count=sessions_count,
         )
 
+    def get_layer_status(self) -> str:
+        """Return dynamic Layer 08 status based on model registry and engine health."""
+        status_info = self.get_status()
+        if status_info.status in ("INFERENCE READY", "OPERATIONAL", "TRAINED"):
+            return "OPERATIONAL"
+        if status_info.status == "READY":
+            return "READY"
+        if status_info.status == "ERROR":
+            return "ERROR"
+        return "READY"
+
     def list_models(self) -> List[MLModelSummary]:
         """List all registered models, sorted by creation date descending."""
         if not os.environ.get("PYTEST_CURRENT_TEST"):

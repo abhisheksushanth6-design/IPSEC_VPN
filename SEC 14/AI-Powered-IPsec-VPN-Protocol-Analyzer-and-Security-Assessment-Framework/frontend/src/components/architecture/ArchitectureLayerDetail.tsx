@@ -142,6 +142,56 @@ export function ArchitectureLayerDetail({ layer, onClose }: ArchitectureLayerDet
             </div>
           </dl>
         </Section>
+
+        <Section title="Runtime Verification & Capability">
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="flex items-center gap-1.5 p-2 rounded border border-border bg-background">
+              <span className={cn("h-2 w-2 rounded-full", layer.foundation_available !== false ? "bg-emerald-500" : "bg-muted")} />
+              <span className="text-secondary">Foundation:</span>
+              <span className="font-medium text-primary ml-auto">{layer.foundation_available !== false ? "Ready" : "Missing"}</span>
+            </div>
+            <div className="flex items-center gap-1.5 p-2 rounded border border-border bg-background">
+              <span className={cn("h-2 w-2 rounded-full", layer.implementation_available ? "bg-emerald-500" : "bg-amber-500")} />
+              <span className="text-secondary">Logic:</span>
+              <span className="font-medium text-primary ml-auto">{layer.implementation_available ? "Implemented" : "Pending"}</span>
+            </div>
+            <div className="flex items-center gap-1.5 p-2 rounded border border-border bg-background">
+              <span className={cn("h-2 w-2 rounded-full", layer.runtime_verified ? "bg-emerald-500" : "bg-rose-500")} />
+              <span className="text-secondary">Runtime:</span>
+              <span className="font-medium text-primary ml-auto">{layer.runtime_verified ? "Verified" : "Unverified"}</span>
+            </div>
+            <div className="flex items-center gap-1.5 p-2 rounded border border-border bg-background">
+              <span className={cn("h-2 w-2 rounded-full", layer.unit_tests_passed !== false ? "bg-emerald-500" : "bg-rose-500")} />
+              <span className="text-secondary">Unit Tests:</span>
+              <span className="font-medium text-primary ml-auto">{layer.unit_tests_passed !== false ? "Passing" : "Failing"}</span>
+            </div>
+          </div>
+          {layer.last_verified && (
+            <p className="mt-2 text-2xs text-muted">
+              Last verified: {new Date(layer.last_verified).toLocaleTimeString()}
+            </p>
+          )}
+          {layer.verification_errors && layer.verification_errors.length > 0 && (
+            <div className="mt-2 p-2 rounded border border-rose-500/30 bg-rose-500/10 text-xs text-rose-400">
+              <p className="font-medium">Verification Errors:</p>
+              <ul className="list-disc list-inside mt-1 space-y-0.5">
+                {layer.verification_errors.map((err, i) => (
+                  <li key={i}>{err}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {layer.limitations && layer.limitations.length > 0 && (
+            <div className="mt-2 p-2 rounded border border-amber-500/30 bg-amber-500/10 text-xs text-amber-400">
+              <p className="font-medium">Operational Constraints:</p>
+              <ul className="list-disc list-inside mt-1 space-y-0.5">
+                {layer.limitations.map((lim, i) => (
+                  <li key={i}>{lim}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </Section>
       </div>
 
       <div className="border-t border-border p-4">

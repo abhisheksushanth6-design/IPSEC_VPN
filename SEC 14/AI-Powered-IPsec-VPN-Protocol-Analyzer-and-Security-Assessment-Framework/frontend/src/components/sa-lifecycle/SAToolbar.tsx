@@ -33,8 +33,8 @@ export function SAToolbar({ controller }: { controller: SAController }) {
         ) : status ? <span className="text-2xs text-muted">No packet data available. <Link to="/packet-analysis" className="text-info hover:underline">Load a capture in Packet Analysis</Link>.</span> : null}
       </div>
       <div role="group" aria-label="SA controls" className="flex flex-wrap items-center gap-2">
-        <button type="button" className={button} disabled={!packets || busy !== null} onClick={() => void discover()} title={packets ? 'Run SA lifecycle analysis on the loaded capture' : 'No packet data available'}>
-          <KeyRound aria-hidden className="h-3.5 w-3.5" />{busy === 'discover' ? 'Analyzing SA lifecycle…' : 'Discover SAs'}
+        <button type="button" className={button} disabled={!packets || busy !== null} onClick={() => void discover()} title={packets ? 'Run SA & protocol state analysis on the loaded capture' : 'No packet data available'}>
+          <KeyRound aria-hidden className="h-3.5 w-3.5" />{busy === 'discover' ? 'Analyzing SA & protocol state…' : 'Discover SAs'}
         </button>
         <button type="button" className={button} disabled={status?.state !== 'ACTIVE' || busy !== null} onClick={() => void clear()}><Trash2 aria-hidden className="h-3.5 w-3.5" />Clear</button>
         <button type="button" className={button} disabled={busy !== null || statusLoading} onClick={refresh}><RefreshCw aria-hidden className={statusLoading ? 'h-3.5 w-3.5 animate-spin' : 'h-3.5 w-3.5'} />Refresh</button>

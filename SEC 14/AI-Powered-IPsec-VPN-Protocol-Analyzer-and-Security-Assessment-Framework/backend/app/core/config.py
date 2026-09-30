@@ -44,6 +44,19 @@ class Settings(BaseSettings):
     application_mode: str = Field(default="STANDALONE")
     log_level: str = Field(default="INFO")
 
+    # Authentication & Security
+    jwt_secret_key: str = Field(default="sih-ipsec-vpn-jwt-secret-key-production-change-me-32b")
+    jwt_algorithm: str = Field(default="HS256")
+    access_token_expire_minutes: int = Field(default=1440)
+    auth_rate_limit_max_attempts: int = Field(default=5)
+    auth_rate_limit_window_seconds: int = Field(default=900)
+    cookie_secure: bool | None = Field(default=None)
+    smtp_host: str = Field(default="")
+    smtp_port: int = Field(default=587)
+    smtp_user: str = Field(default="")
+    smtp_password: str = Field(default="")
+    smtp_from: str = Field(default="noreply@ipsec-analyzer.local")
+
     # Layer 01 — IPsec VPN Test Environment
     vboxmanage_path: str = Field(default=r"C:\Program Files\Oracle\VirtualBox\VBoxManage.exe")
     client_vm_name: str = Field(default="IPsec-Client")
@@ -92,6 +105,12 @@ class Settings(BaseSettings):
     @property
     def is_production(self) -> bool:
         return self.application_mode == "PRODUCTION"
+
+    @property
+    def is_cookie_secure(self) -> bool:
+        if self.cookie_secure is not None:
+            return self.cookie_secure
+        return self.is_production
 
 
 @lru_cache(maxsize=1)

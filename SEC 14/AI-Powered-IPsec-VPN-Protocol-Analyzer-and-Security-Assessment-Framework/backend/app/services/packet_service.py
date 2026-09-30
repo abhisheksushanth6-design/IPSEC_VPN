@@ -14,15 +14,27 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from app.layers.layer03_protocol_analysis import CaptureFormatError, analyze_capture
-from app.layers.layer03_protocol_analysis.models import CaptureMetadata, PacketAnalysisResult
+from app.layers.layer03_protocol_analysis.models import (
+    CaptureMetadata,
+    PacketAnalysisResult,
+    ProtocolAnalysisReport,
+)
+from app.layers.layer03_protocol_analysis.service import get_protocol_analysis_service
 from app.schemas.packets import (
     AnalysisStatusSchema,
     CaptureMetadataSchema,
+    IKENegotiationAnalysisSchema,
+    IKEProposalSchema,
+    IPsecStreamSummarySchema,
     PacketPageSchema,
     PacketStatisticsSchema,
     PacketSummarySchema,
+    ProtocolAnalysisReportSchema,
+    ProtocolAnomalySchema,
     ProtocolCountsSchema,
+    TunnelEndpointSummarySchema,
 )
+
 
 SUPPORTED_EXTENSIONS = (".pcap", ".pcapng", ".cap")
 SUPPORTED_FORMATS = ["pcap", "pcapng"]
@@ -169,6 +181,10 @@ class PacketService:
     def get(self, packet_id: str) -> PacketAnalysisResult:
         with self._lock:
             packet = self._by_id.get(packet_id)
+            if packet is None and str(packet_id).isdigit():
+                idx = int(packet_id) - 1
+                if 0 <= idx < len(self._packets):
+                    packet = self._packets[idx]
         if packet is None:
             raise PacketServiceError("PACKET_NOT_FOUND", "No packet with that identifier is loaded.", 404)
         return packet
@@ -202,6 +218,47 @@ class PacketService:
         start = (page - 1) * page_size
         items = [self._summary(p) for p in rows[start : start + page_size]]
         return PacketPageSchema(items=items, page=page, page_size=page_size, total=total, total_pages=total_pages)
+
+    def protocol_analysis(self) -> ProtocolAnalysisReportSchema:
+        with self._lock:
+            packets = list(self._packets)
+            capture_id = self._capture_id
+        svc = get_protocol_analysis_service()
+        report = svc.analyze(packets, capture_id=capture_id)
+        return ProtocolAnalysisReportSchema(
+            capture_id=report.capture_id,
+            total_packets_analyzed=report.total_packets_analyzed,
+            ipsec_packets=report.ipsec_packets,
+            ike_summary=IKENegotiationAnalysisSchema(**report.ike_summary),
+            ipsec_streams=[IPsecStreamSummarySchema.model_validate(s) for s in report.ipsec_streams],
+            tunnel_endpoints=[TunnelEndpointSummarySchema.model_validate(t) for t in report.tunnel_endpoints],
+            anomalies=[ProtocolAnomalySchema.model_validate(a) for a in report.anomalies],
+            protocol_counts=report.protocol_counts,
+            analysis_timestamp=report.analysis_timestamp,
+            status=report.status,
+        )
+
+    def get_anomalies(self) -> list[ProtocolAnomalySchema]:
+        report = self.protocol_analysis()
+        return report.anomalies
+
+    def get_streams(self) -> list[IPsecStreamSummarySchema]:
+        report = self.protocol_analysis()
+        return report.ipsec_streams
+
+    def get_tunnel_endpoints(self) -> list[TunnelEndpointSummarySchema]:
+        report = self.protocol_analysis()
+        return report.tunnel_endpoints
+
+    def get_ike_proposals(self) -> list[IKEProposalSchema]:
+        with self._lock:
+            packets = list(self._packets)
+        proposals: list[IKEProposalSchema] = []
+        for p in packets:
+            if p.ipsec and p.ipsec.ike and p.ipsec.ike.proposals:
+                for prop in p.ipsec.ike.proposals:
+                    proposals.append(IKEProposalSchema.model_validate(prop))
+        return proposals
 
     # ----- helpers ---------------------------------------------------------
 

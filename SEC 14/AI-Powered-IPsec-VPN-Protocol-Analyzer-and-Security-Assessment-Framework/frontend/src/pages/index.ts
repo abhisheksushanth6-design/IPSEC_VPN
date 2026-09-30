@@ -15,3 +15,6 @@ export { SALifecyclePage } from './SALifecycle';
 export { SecurityDriftPage } from './SecurityDrift';
 export { SettingsPage } from './Settings';
 export { VulnerabilitiesPage } from './Vulnerabilities';
+export { TrafficAnalysisPage } from './TrafficAnalysis';
+export { MetadataExposurePage } from './MetadataExposure';
+export { ThreatMatrixPage } from './ThreatMatrix';

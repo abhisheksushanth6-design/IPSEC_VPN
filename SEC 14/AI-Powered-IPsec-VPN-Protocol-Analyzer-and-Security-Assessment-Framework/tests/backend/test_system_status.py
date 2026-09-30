@@ -23,12 +23,12 @@ def test_status_reflects_real_state(client) -> None:
     assert payload["application_mode"] == "STANDALONE"
 
 
-def test_all_fourteen_layers_are_reported(client) -> None:
+def test_all_ten_layers_are_reported(client) -> None:
     payload = client.get("/api/system/status").json()
     layers = payload["architecture_layers"]
-    assert payload["total_layers"] == 14
-    assert len(layers) == 14
-    assert [layer["number"] for layer in layers] == list(range(1, 15))
+    assert payload["total_layers"] == 10
+    assert len(layers) == 10
+    assert [layer["number"] for layer in layers] == list(range(1, 11))
     assert [layer["name"] for layer in layers] == [
         layer.name for layer in ARCHITECTURE_LAYERS
     ]
@@ -41,6 +41,14 @@ def test_intelligence_layers_are_not_initialized(client) -> None:
             assert layer["status"] in ("READY", "WARNING", "ERROR", "NOT INITIALIZED")
         elif layer["number"] == 2:
             assert layer["status"] in ("READY", "CAPTURING", "ERROR", "NOT INITIALIZED")
+        elif layer["number"] == 3:
+            assert layer["status"] in ("READY", "OPERATIONAL", "NOT INITIALIZED")
+        elif layer["number"] == 4:
+            assert layer["status"] in ("READY", "OPERATIONAL", "NOT INITIALIZED")
+        elif layer["number"] == 5:
+            assert layer["status"] in ("READY", "OPERATIONAL", "NOT INITIALIZED")
+        elif layer["number"] == 6:
+            assert layer["status"] in ("READY", "OPERATIONAL", "NOT INITIALIZED")
         elif layer["number"] == 10:
             assert layer["status"] in ("OPERATIONAL", "NOT INITIALIZED", "READY")
         elif layer["number"] in (8, 9):

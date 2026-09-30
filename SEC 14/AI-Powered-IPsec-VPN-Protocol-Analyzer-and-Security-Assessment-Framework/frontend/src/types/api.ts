@@ -16,6 +16,17 @@ export interface ArchitectureLayer {
   package: string;
   status: LayerStatusValue;
   description: string;
+  foundation_available?: boolean;
+  implementation_available?: boolean;
+  runtime_verified?: boolean;
+  unit_tests_passed?: boolean;
+  integration_tests_passed?: boolean;
+  end_to_end_verified?: boolean;
+  last_verified?: string | null;
+  verification_errors?: string[];
+  limitations?: string[];
+  overall_status?: string;
+  evidence_files?: string[];
 }
 
 /** Operating mode reported by the backend. */

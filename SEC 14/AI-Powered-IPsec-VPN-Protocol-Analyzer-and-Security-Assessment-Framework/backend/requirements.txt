@@ -1,5 +1,6 @@
 # SECTION 14 — Layer 14 Report Generation (PDF) enabled.
-# Scapy remains unlisted until packet capture live engine.
+# Layer 02 — Packet Capture & Data Collection (Scapy)
+scapy>=2.5.0
 
 fastapi==0.115.6
 uvicorn[standard]==0.34.0
@@ -13,3 +14,5 @@ joblib>=1.4.0
 reportlab>=4.2.0
 xgboost>=2.0.0
 httpx>=0.27.0
+argon2-cffi>=23.1.0
+pyjwt>=2.8.0

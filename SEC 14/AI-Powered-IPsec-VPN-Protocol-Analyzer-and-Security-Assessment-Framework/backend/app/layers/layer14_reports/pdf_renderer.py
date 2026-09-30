@@ -8,6 +8,7 @@ structured tables, severity callouts, and evidence traceability.
 from __future__ import annotations
 
 import io
+import re
 from typing import Any
 
 from reportlab.lib import colors
@@ -31,6 +32,8 @@ from app.layers.layer14_reports.schemas import SecurityAssessmentReportData
 class NumberedCanvas(canvas.Canvas):
     """Two-pass canvas calculating total page count for running headers & footers."""
 
+    total_pages_rendered: int = 1
+
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self._saved_page_states: list[dict[str, Any]] = []
@@ -41,6 +44,7 @@ class NumberedCanvas(canvas.Canvas):
 
     def save(self) -> None:
         num_pages = len(self._saved_page_states)
+        NumberedCanvas.total_pages_rendered = max(1, num_pages)
         for state in self._saved_page_states:
             self.__dict__.update(state)
             self.draw_page_decorations(num_pages)
@@ -80,6 +84,7 @@ class PDFReportRenderer:
     def __init__(self) -> None:
         self.styles = getSampleStyleSheet()
         self._setup_custom_styles()
+        self.last_page_count: int = 1
 
     def _setup_custom_styles(self) -> None:
         """Create clean typography styles for cybersecurity reporting."""
@@ -233,41 +238,77 @@ class PDFReportRenderer:
         )
 
         story: list[Any] = []
+        report_type = str(data.metadata.get("report_type") or "FULL").upper()
 
-        # 1. Cover Page
-        self._build_cover_page(story, data)
-        story.append(PageBreak())
+        if report_type == "EXECUTIVE":
+            # Executive Management Report
+            self._build_cover_page(story, data)
+            story.append(PageBreak())
+            self._build_executive_summary(story, data)
+            if data.traffic_classification:
+                self._build_traffic_classification(story, data)
+            self._build_recommendations(story, data)
+            self._build_data_provenance(story, data)
+            self._build_appendix(story, data)
+        else:
+            # Full / Technical / Session Security Assessment Report
+            # 1. Cover Page
+            self._build_cover_page(story, data)
+            story.append(PageBreak())
 
-        # 2. Executive Summary & Security Posture
-        self._build_executive_summary(story, data)
+            # 2. Executive Summary & Security Posture
+            self._build_executive_summary(story, data)
 
-        # 3. Environment & Capture Telemetry
-        self._build_environment_and_capture(story, data)
+            # 3. Environment & Capture Telemetry
+            self._build_environment_and_capture(story, data)
 
-        # 4. Protocol & Cryptographic Posture
-        self._build_protocol_and_crypto(story, data)
+            # 4. Protocol & Cryptographic Posture
+            self._build_protocol_and_crypto(story, data)
 
-        # 5. Security Association (SA) Lifecycles
-        self._build_sa_lifecycles(story, data)
+            # 5. Security Association (SA) Lifecycles
+            self._build_sa_lifecycles(story, data)
 
-        # 6. Behavioral Baselines & Security Drift
-        self._build_baseline_and_drift(story, data)
+            # 6. Session Analysis & Behavioral Fingerprints
+            self._build_session_analysis(story, data)
 
-        # 7. AI / ML Anomaly Detection & Explainability
-        self._build_ai_ml_anomalies(story, data)
+            # 7. Behavioral Baselines & Security Drift
+            self._build_baseline_and_drift(story, data)
 
-        # 8. Security Rule & Vulnerability Findings
-        self._build_vulnerabilities(story, data)
+            # 8. AI / ML Anomaly Detection & Explainability
+            self._build_ai_ml_anomalies(story, data)
 
-        # 9. Prioritized Recommendations
-        self._build_recommendations(story, data)
+            # 9. Encapsulated Traffic-Type Classification
+            self._build_traffic_classification(story, data)
 
-        # 10. Technical Appendix
-        self._build_appendix(story, data)
+            # 10. Metadata Exposure & Side-Channel Assessment
+            self._build_metadata_exposure(story, data)
+
+            # 11. Standalone IPsec Threat Matrix
+            self._build_threat_matrix(story, data)
+
+            # 12. Security Rule & Vulnerability Findings
+            self._build_vulnerabilities(story, data)
+
+            # 13. Prioritized Recommendations
+            self._build_recommendations(story, data)
+
+            # 14. Data Provenance & Telemetry Integrity Audit
+            self._build_data_provenance(story, data)
+
+            # 15. Technical Appendix
+            self._build_appendix(story, data)
 
         # Build PDF using custom NumberedCanvas
         doc.build(story, canvasmaker=NumberedCanvas)
-        return buffer.getvalue()
+        pdf_bytes = buffer.getvalue()
+        regex_pages = len(re.findall(rb'/Type\s*/Page\b', pdf_bytes))
+        self.last_page_count = max(regex_pages, getattr(NumberedCanvas, "total_pages_rendered", 1), 1)
+        return pdf_bytes
+
+    def render_with_metadata(self, data: SecurityAssessmentReportData) -> tuple[bytes, int]:
+        """Render report and return both binary PDF bytes and exact page count."""
+        pdf_bytes = self.render(data)
+        return pdf_bytes, self.last_page_count
 
     # -----------------------------------------------------------------------
     # Section Builders
@@ -464,6 +505,35 @@ class PDFReportRenderer:
         cap = data.capture
         p_counts = cap.get("protocol_counts", {})
 
+        # Capture metadata overview
+        cap_meta = [
+            [
+                Paragraph("<b>Capture ID:</b>", self.styles["TableCell"]),
+                Paragraph(f"<code>{cap.get('capture_id', 'CAP-LIVE-ACTIVE')}</code>", self.styles["TableCell"]),
+                Paragraph("<b>PCAP Source:</b>", self.styles["TableCell"]),
+                Paragraph(f"<code>{cap.get('filename', 'None')}</code>", self.styles["TableCell"]),
+            ],
+            [
+                Paragraph("<b>Total Packets:</b>", self.styles["TableCell"]),
+                Paragraph(f"{cap.get('total_packets', 0):,}", self.styles["TableCell"]),
+                Paragraph("<b>NAT-Traversal (4500):</b>", self.styles["TableCell"]),
+                Paragraph("OBSERVED" if cap.get("nat_traversal_observed") else "NOT OBSERVED", self.styles["TableCell"]),
+            ],
+        ]
+        cap_meta_table = Table(cap_meta, colWidths=[120, 150, 120, 140])
+        cap_meta_table.setStyle(
+            TableStyle([
+                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F8FAFC")),
+                ("BOX", (0, 0), (-1, -1), 1, colors.HexColor("#CBD5E1")),
+                ("INNERGRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#E2E8F0")),
+                ("TOPPADDING", (0, 0), (-1, -1), 4),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                ("LEFTPADDING", (0, 0), (-1, -1), 6),
+            ])
+        )
+        story.append(cap_meta_table)
+        story.append(Spacer(1, 6))
+
         proto_rows = [
             [
                 Paragraph("<b>Protocol</b>", self.styles["TableHeader"]),
@@ -475,7 +545,7 @@ class PDFReportRenderer:
             role = "Key Exchange (Control)" if proto == "IKE" else "Encrypted Data (ESP)" if proto == "ESP" else "Header Authentication" if proto == "AH" else "Carrier / Transport"
             proto_rows.append([
                 Paragraph(proto, self.styles["TableCell"]),
-                Paragraph(str(count), self.styles["TableCell"]),
+                Paragraph(f"{count:,}", self.styles["TableCell"]),
                 Paragraph(role, self.styles["TableCell"]),
             ])
 
@@ -593,8 +663,88 @@ class PDFReportRenderer:
         story.append(sa_table)
         story.append(Spacer(1, 12))
 
+    def _build_session_analysis(self, story: list[Any], data: SecurityAssessmentReportData) -> None:
+        story.append(Paragraph("5. IPsec Session Analysis &amp; Behavioral Fingerprints", self.styles["SectionHeading"]))
+        story.append(
+            HRFlowable(width="100%", thickness=0.5, color=colors.HexColor("#CBD5E1"), spaceAfter=8)
+        )
+
+        sess_data = data.session_analysis or {}
+        sessions = sess_data.get("sessions", [])
+
+        story.append(
+            Paragraph(
+                f"<b>Total Monitored Sessions:</b> {sess_data.get('total_sessions', len(sessions))} &middot; "
+                f"<b>Scope:</b> {sess_data.get('scoped_session_id') or 'All Telemetry'}",
+                self.styles["BodyDark"],
+            )
+        )
+        story.append(Spacer(1, 6))
+
+        sess_rows = [
+            [
+                Paragraph("<b>Session ID</b>", self.styles["TableHeader"]),
+                Paragraph("<b>Endpoints &amp; Mode</b>", self.styles["TableHeader"]),
+                Paragraph("<b>Packets / Bytes</b>", self.styles["TableHeader"]),
+                Paragraph("<b>State / Duration</b>", self.styles["TableHeader"]),
+                Paragraph("<b>Fingerprint &amp; Posture</b>", self.styles["TableHeader"]),
+            ]
+        ]
+        for s in sessions[:10]:
+            anom_badge = (
+                self.styles["BadgeCritical"] if s.get("anomaly_status") == "ANOMALOUS"
+                else self.styles["BadgeSuccess"]
+            )
+            sess_rows.append([
+                Paragraph(f"<code>{s['session_id'][:16]}</code>", self.styles["TableCell"]),
+                Paragraph(
+                    f"{s['initiator']} &rarr; {s['responder']}<br/>"
+                    f"<font color='#64748B'>{s['ike_version']} &middot; {s['ipsec_mode']} {'(NAT-T)' if s.get('nat_traversal') else ''}</font>",
+                    self.styles["TableCell"],
+                ),
+                Paragraph(
+                    f"{s['packet_count']} pkts<br/>"
+                    f"<font color='#64748B'>{s['byte_count']:,} B (IKE:{s['ike_packets']}, ESP:{s['esp_packets']})</font>",
+                    self.styles["TableCell"],
+                ),
+                Paragraph(
+                    f"<b>{s['state']}</b><br/>"
+                    f"<font color='#64748B'>{s.get('duration_seconds', 0):.1f}s</font>",
+                    self.styles["TableCell"],
+                ),
+                Paragraph(
+                    f"SHA: <code>{s.get('fingerprint_preview', 'N/A')}</code><br/>"
+                    f"Anomaly: {s.get('anomaly_status', 'NORMAL')} &middot; Findings: {s.get('related_findings', 0)}",
+                    self.styles["TableCell"],
+                ),
+            ])
+
+        if len(sess_rows) == 1:
+            sess_rows.append([
+                Paragraph("None", self.styles["TableCell"]),
+                Paragraph("No active IPsec sessions recorded", self.styles["TableCell"]),
+                Paragraph("0 pkts", self.styles["TableCell"]),
+                Paragraph("IDLE", self.styles["TableCell"]),
+                Paragraph("No behavioral fingerprint available", self.styles["TableCell"]),
+            ])
+
+        sess_table = Table(sess_rows, colWidths=[100, 140, 110, 80, 100])
+        sess_table.setStyle(
+            TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1E293B")),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.HexColor("#F8FAFC"), colors.white]),
+                ("BOX", (0, 0), (-1, -1), 1, colors.HexColor("#CBD5E1")),
+                ("INNERGRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#E2E8F0")),
+                ("TOPPADDING", (0, 0), (-1, -1), 4),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                ("LEFTPADDING", (0, 0), (-1, -1), 5),
+            ])
+        )
+        story.append(sess_table)
+        story.append(Spacer(1, 12))
+
     def _build_baseline_and_drift(self, story: list[Any], data: SecurityAssessmentReportData) -> None:
-        story.append(Paragraph("5. Behavioral Baselines &amp; Security Drift", self.styles["SectionHeading"]))
+        story.append(Paragraph("6. Behavioral Baselines &amp; Security Drift", self.styles["SectionHeading"]))
         story.append(
             HRFlowable(width="100%", thickness=0.5, color=colors.HexColor("#CBD5E1"), spaceAfter=8)
         )
@@ -709,8 +859,199 @@ class PDFReportRenderer:
         story.append(a_table)
         story.append(Spacer(1, 12))
 
+    def _build_traffic_classification(self, story: list[Any], data: SecurityAssessmentReportData) -> None:
+        story.append(Paragraph("8. AI Encapsulated Traffic-Type Classification (ESP Inner Flow Inference)", self.styles["SectionHeading"]))
+        story.append(
+            HRFlowable(width="100%", thickness=0.5, color=colors.HexColor("#CBD5E1"), spaceAfter=8)
+        )
+
+        tc = data.traffic_classification
+        if not tc or not tc.get("classifications"):
+            story.append(Paragraph("No encrypted payload traffic types classified for this capture session.", self.styles["MutedNote"]))
+            story.append(Spacer(1, 10))
+            return
+
+        dist = tc.get("distribution", {})
+        dist_str = " &middot; ".join(f"<b>{k}:</b> {v}" for k, v in dist.items()) if dist else "N/A"
+        summary_text = (
+            f"<b>Total Evaluated Sessions:</b> {tc.get('total_sessions', 0)} &middot; "
+            f"<b>Distribution:</b> {dist_str}"
+        )
+        story.append(Paragraph(summary_text, self.styles["BodyDark"]))
+        story.append(Spacer(1, 6))
+
+        tc_rows = [
+            [
+                Paragraph("<b>Session ID</b>", self.styles["TableHeader"]),
+                Paragraph("<b>Traffic Type</b>", self.styles["TableHeader"]),
+                Paragraph("<b>Confidence</b>", self.styles["TableHeader"]),
+                Paragraph("<b>AI Feature Attribution &amp; Explainability</b>", self.styles["TableHeader"]),
+            ]
+        ]
+        for c in tc.get("classifications", [])[:8]:
+            tt = c.get("traffic_type", "GENERIC")
+            conf = c.get("confidence", 0.0)
+            expl = c.get("explainability", [])
+            expl_str = "; ".join(f"{e.get('signal')}: {e.get('value')}" for e in expl[:3]) if expl else "Statistical heuristics match"
+            
+            badge_style = self.styles["BadgeSuccess"] if conf >= 0.85 else self.styles["BadgeMedium"] if conf >= 0.70 else self.styles["BadgeLow"]
+            tc_rows.append([
+                Paragraph(c.get("session_id", "N/A"), self.styles["TableCell"]),
+                Paragraph(f"<b>{tt}</b>", self.styles["TableCell"]),
+                Paragraph(f"{conf * 100:.1f}%", badge_style),
+                Paragraph(expl_str, self.styles["TableCell"]),
+            ])
+
+        tc_table = Table(tc_rows, colWidths=[120, 100, 70, 240])
+        tc_table.setStyle(
+            TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1E293B")),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.HexColor("#F8FAFC"), colors.white]),
+                ("BOX", (0, 0), (-1, -1), 1, colors.HexColor("#CBD5E1")),
+                ("INNERGRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#E2E8F0")),
+                ("TOPPADDING", (0, 0), (-1, -1), 5),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+                ("LEFTPADDING", (0, 0), (-1, -1), 6),
+            ])
+        )
+        story.append(tc_table)
+        story.append(Spacer(1, 12))
+
+    def _build_metadata_exposure(self, story: list[Any], data: SecurityAssessmentReportData) -> None:
+        story.append(Paragraph("9. Metadata Exposure &amp; Side-Channel Leakage Assessment", self.styles["SectionHeading"]))
+        story.append(
+            HRFlowable(width="100%", thickness=0.5, color=colors.HexColor("#CBD5E1"), spaceAfter=8)
+        )
+
+        me = data.metadata_exposure
+        if not me or not me.get("assessments"):
+            story.append(Paragraph("No metadata exposure metrics recorded for this session.", self.styles["MutedNote"]))
+            story.append(Spacer(1, 10))
+            return
+
+        summary = me.get("summary", {})
+        score = summary.get("overall_score", 0.0)
+        risk = summary.get("risk_level", "LOW")
+
+        summary_text = (
+            f"<b>Overall Exposure Score:</b> {score:.1f}/100 &middot; "
+            f"<b>Risk Level:</b> {risk} &middot; "
+            f"<b>SPI Leakage:</b> {summary.get('spi_leakage_score', 0):.1f} &middot; "
+            f"<b>Sequence Monotonicity:</b> {summary.get('sequence_leakage_score', 0):.1f} &middot; "
+            f"<b>Length/TFC:</b> {summary.get('packet_length_leakage_score', 0):.1f} &middot; "
+            f"<b>Timing:</b> {summary.get('timing_leakage_score', 0):.1f} &middot; "
+            f"<b>Topology:</b> {summary.get('topology_leakage_score', 0):.1f}"
+        )
+        story.append(Paragraph(summary_text, self.styles["BodyDark"]))
+        story.append(Spacer(1, 6))
+
+        me_rows = [
+            [
+                Paragraph("<b>Session ID</b>", self.styles["TableHeader"]),
+                Paragraph("<b>Risk</b>", self.styles["TableHeader"]),
+                Paragraph("<b>SPI / Seq</b>", self.styles["TableHeader"]),
+                Paragraph("<b>Length / Timing</b>", self.styles["TableHeader"]),
+                Paragraph("<b>Topology</b>", self.styles["TableHeader"]),
+                Paragraph("<b>Key Finding / Recommendation</b>", self.styles["TableHeader"]),
+            ]
+        ]
+        for a in me.get("assessments", [])[:6]:
+            r_level = a.get("risk_level", "LOW")
+            r_badge = (
+                self.styles["BadgeCritical"] if r_level == "CRITICAL"
+                else self.styles["BadgeHigh"] if r_level == "HIGH"
+                else self.styles["BadgeMedium"] if r_level == "MEDIUM"
+                else self.styles["BadgeLow"]
+            )
+            recs = a.get("recommendations", [])
+            rec_str = recs[0] if recs else "Standard TFC padding and tunnel isolation"
+            me_rows.append([
+                Paragraph(a.get("session_id", "N/A"), self.styles["TableCell"]),
+                Paragraph(r_level, r_badge),
+                Paragraph(f"SPI: {a.get('spi_leakage_score', 0):.0f}<br/>Seq: {a.get('sequence_leakage_score', 0):.0f}", self.styles["TableCell"]),
+                Paragraph(f"Len: {a.get('packet_length_leakage_score', 0):.0f}<br/>Time: {a.get('timing_leakage_score', 0):.0f}", self.styles["TableCell"]),
+                Paragraph(f"{a.get('topology_leakage_score', 0):.0f}", self.styles["TableCell"]),
+                Paragraph(rec_str, self.styles["TableCell"]),
+            ])
+
+        me_table = Table(me_rows, colWidths=[110, 60, 65, 85, 55, 155])
+        me_table.setStyle(
+            TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1E293B")),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.HexColor("#F8FAFC"), colors.white]),
+                ("BOX", (0, 0), (-1, -1), 1, colors.HexColor("#CBD5E1")),
+                ("INNERGRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#E2E8F0")),
+                ("TOPPADDING", (0, 0), (-1, -1), 4),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                ("LEFTPADDING", (0, 0), (-1, -1), 5),
+            ])
+        )
+        story.append(me_table)
+        story.append(Spacer(1, 12))
+
+    def _build_threat_matrix(self, story: list[Any], data: SecurityAssessmentReportData) -> None:
+        story.append(Paragraph("10. Standalone IPsec Threat Matrix (MITRE ATT&CK &amp; NIST SP 800-77)", self.styles["SectionHeading"]))
+        story.append(
+            HRFlowable(width="100%", thickness=0.5, color=colors.HexColor("#CBD5E1"), spaceAfter=8)
+        )
+
+        tm = data.threat_matrix
+        if not tm or not tm.get("threats"):
+            story.append(Paragraph("No threat matrix evaluations recorded for this capture.", self.styles["MutedNote"]))
+            story.append(Spacer(1, 10))
+            return
+
+        summary = tm.get("summary", {})
+        comp_score = summary.get("compliance_score", 100.0)
+        det_count = summary.get("detected_threats", 0)
+        tot_threats = summary.get("total_threats", len(tm.get("threats", [])))
+
+        summary_text = (
+            f"<b>Evaluated Threats:</b> {tot_threats} &middot; "
+            f"<b>Active Detections:</b> <font color='{'#DC2626' if det_count > 0 else '#16A34A'}'><b>{det_count}</b></font> &middot; "
+            f"<b>Framework Compliance Score:</b> <b>{comp_score:.1f}%</b>"
+        )
+        story.append(Paragraph(summary_text, self.styles["BodyDark"]))
+        story.append(Spacer(1, 6))
+
+        tm_rows = [
+            [
+                Paragraph("<b>ID</b>", self.styles["TableHeader"]),
+                Paragraph("<b>Threat Name</b>", self.styles["TableHeader"]),
+                Paragraph("<b>Category / Severity</b>", self.styles["TableHeader"]),
+                Paragraph("<b>MITRE / NIST / RFC</b>", self.styles["TableHeader"]),
+                Paragraph("<b>Status</b>", self.styles["TableHeader"]),
+            ]
+        ]
+        for t in tm.get("threats", []):
+            st = t.get("status", "NOT_DETECTED")
+            st_color = "#DC2626" if st == "DETECTED" else "#16A34A"
+            sev = t.get("severity", "MEDIUM")
+            tm_rows.append([
+                Paragraph(t.get("matrix_id", "N/A"), self.styles["TableCell"]),
+                Paragraph(f"<b>{t.get('name', 'N/A')}</b>", self.styles["TableCell"]),
+                Paragraph(f"{t.get('category', 'N/A')}<br/><font color='#64748B'>{sev}</font>", self.styles["TableCell"]),
+                Paragraph(f"{t.get('mitre_technique_id', 'N/A')}<br/><font color='#64748B'>{t.get('nist_control', 'N/A')} &middot; {t.get('rfc_reference', 'N/A')}</font>", self.styles["TableCell"]),
+                Paragraph(f"<font color='{st_color}'><b>{st}</b></font>", self.styles["TableCell"]),
+            ])
+
+        tm_table = Table(tm_rows, colWidths=[70, 160, 100, 130, 70])
+        tm_table.setStyle(
+            TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1E293B")),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.HexColor("#F8FAFC"), colors.white]),
+                ("BOX", (0, 0), (-1, -1), 1, colors.HexColor("#CBD5E1")),
+                ("INNERGRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#E2E8F0")),
+                ("TOPPADDING", (0, 0), (-1, -1), 4),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                ("LEFTPADDING", (0, 0), (-1, -1), 5),
+            ])
+        )
+        story.append(tm_table)
+        story.append(Spacer(1, 12))
+
     def _build_vulnerabilities(self, story: list[Any], data: SecurityAssessmentReportData) -> None:
-        story.append(Paragraph("7. Security Rule &amp; Vulnerability Engine Findings", self.styles["SectionHeading"]))
+        story.append(Paragraph("11. Security Rule &amp; Vulnerability Engine Findings", self.styles["SectionHeading"]))
         story.append(
             HRFlowable(width="100%", thickness=0.5, color=colors.HexColor("#CBD5E1"), spaceAfter=8)
         )
@@ -782,7 +1123,7 @@ class PDFReportRenderer:
         story.append(Spacer(1, 12))
 
     def _build_recommendations(self, story: list[Any], data: SecurityAssessmentReportData) -> None:
-        story.append(Paragraph("8. Prioritized Remediation Recommendations", self.styles["SectionHeading"]))
+        story.append(Paragraph("12. Prioritized Remediation Recommendations", self.styles["SectionHeading"]))
         story.append(
             HRFlowable(width="100%", thickness=0.5, color=colors.HexColor("#CBD5E1"), spaceAfter=8)
         )
@@ -825,8 +1166,80 @@ class PDFReportRenderer:
         story.append(rec_table)
         story.append(Spacer(1, 12))
 
+    def _build_data_provenance(self, story: list[Any], data: SecurityAssessmentReportData) -> None:
+        story.append(Paragraph("Data Provenance &amp; Telemetry Integrity Audit", self.styles["SectionHeading"]))
+        story.append(HRFlowable(width="100%", thickness=0.5, color=colors.HexColor("#CBD5E1"), spaceAfter=8))
+        story.append(Paragraph(
+            "In strict compliance with NTRO / SIH 26160 cybersecurity requirements, the framework transparently "
+            "categorizes all report data points into: <b>Observed</b> (verifiable packet telemetry), "
+            "<b>Inferred</b> (derived from handshake/transforms), <b>Predicted</b> (machine-learning classification), "
+            "and <b>Unavailable</b> (protected by ESP encryption or mid-session capture start).",
+            self.styles["MutedNote"],
+        ))
+        story.append(Spacer(1, 8))
+
+        prov_data = data.data_provenance or {
+            "packet_headers": "OBSERVED",
+            "ip_endpoints": "OBSERVED",
+            "security_parameter_indices": "OBSERVED",
+            "sequence_numbers": "OBSERVED",
+            "traffic_cadence_and_timing": "OBSERVED",
+            "vpn_encapsulation_mode": "INFERRED",
+            "cryptographic_algorithms": "INFERRED",
+            "diffie_hellman_group": "INFERRED",
+            "encrypted_traffic_application_type": "PREDICTED",
+            "ai_anomaly_attack_likelihood": "PREDICTED",
+            "cleartext_inner_payload": "UNAVAILABLE",
+            "unobserved_rekey_proposals": "UNAVAILABLE",
+        }
+
+        color_map = {
+            "OBSERVED": "#16A34A",
+            "INFERRED": "#0284C7",
+            "PREDICTED": "#8B5CF6",
+            "UNAVAILABLE": "#64748B",
+        }
+
+        descriptions = {
+            "OBSERVED": "Directly extracted from raw PCAP byte streams and network interface frames.",
+            "INFERRED": "Logically deduced from unencrypted IKE handshake proposals and header metadata.",
+            "PREDICTED": "Estimated via statistical machine learning and behavioral traffic flow classification.",
+            "UNAVAILABLE": "Protected by ESP payload encryption or missing due to mid-session capture start.",
+        }
+
+        rows = [
+            [
+                Paragraph("<b>Telemetry Element</b>", self.styles["TableHeader"]),
+                Paragraph("<b>Data Classification</b>", self.styles["TableHeader"]),
+                Paragraph("<b>Epistemological Basis</b>", self.styles["TableHeader"]),
+            ]
+        ]
+
+        for param, kind in prov_data.items():
+            name_clean = param.replace("_", " ").title()
+            col = color_map.get(kind, "#000000")
+            desc = descriptions.get(kind, "")
+            rows.append([
+                Paragraph(name_clean, self.styles["TableCell"]),
+                Paragraph(f"<font color='{col}'><b>{kind}</b></font>", self.styles["TableCell"]),
+                Paragraph(desc, self.styles["TableCell"]),
+            ])
+
+        t = Table(rows, colWidths=[160, 110, 260])
+        t.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1E293B")),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.HexColor("#F8FAFC"), colors.white]),
+            ("BOX", (0, 0), (-1, -1), 1, colors.HexColor("#CBD5E1")),
+            ("INNERGRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#E2E8F0")),
+            ("TOPPADDING", (0, 0), (-1, -1), 3),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+            ("LEFTPADDING", (0, 0), (-1, -1), 5),
+        ]))
+        story.append(t)
+        story.append(Spacer(1, 14))
+
     def _build_appendix(self, story: list[Any], data: SecurityAssessmentReportData) -> None:
-        story.append(Paragraph("9. Technical Appendix &amp; Architecture Audit", self.styles["SectionHeading"]))
+        story.append(Paragraph("13. Technical Appendix &amp; Architecture Audit", self.styles["SectionHeading"]))
         story.append(
             HRFlowable(width="100%", thickness=0.5, color=colors.HexColor("#CBD5E1"), spaceAfter=8)
         )

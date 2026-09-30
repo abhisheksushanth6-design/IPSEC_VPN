@@ -76,6 +76,7 @@ def register_exception_handlers(app: FastAPI) -> None:
         return JSONResponse(
             status_code=exc.status_code,
             content=_envelope(str(exc.detail)),
+            headers=getattr(exc, "headers", None),
         )
 
     @app.exception_handler(Exception)

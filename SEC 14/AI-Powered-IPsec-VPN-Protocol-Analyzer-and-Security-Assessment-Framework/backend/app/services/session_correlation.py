@@ -111,6 +111,8 @@ class Session:
     packet_numbers: list[int] = field(default_factory=list)
     packet_roles: dict[int, str] = field(default_factory=dict)
     evidence: list[str] = field(default_factory=list)
+    ipsec_mode: str = "TUNNEL"
+    ip_version: int = 4
 
 
 def correlate(packets: Iterable[PacketAnalysisResult], capture_id: str) -> list[Session]:
@@ -138,7 +140,8 @@ def correlate(packets: Iterable[PacketAnalysisResult], capture_id: str) -> list[
         key=lambda item: (item[1][0].timestamp or "", item[1][0].number),
     )
     for ordinal, (pair, members) in enumerate(ordered, start=1):
-        sessions.append(_build_session(pair, members, ordinal, capture_id))
+        session = _build_session(capture_id, ordinal, pair, members)
+        sessions.append(session)
     return sessions
 
 
@@ -159,7 +162,12 @@ def _epoch(iso: str) -> Optional[float]:
         return None
 
 
-def _build_session(pair: tuple[str, str], members: list[PacketAnalysisResult], ordinal: int, capture_id: str) -> Session:
+def _build_session(
+    capture_id: str,
+    ordinal: int,
+    pair: tuple[str, str],
+    members: list[PacketAnalysisResult],
+) -> Session:
     ike_pkts = [p for p in members if p.ipsec and p.ipsec.type == "IKE"]
     esp_pkts = [p for p in members if p.ipsec and p.ipsec.type == "ESP"]
     ah_pkts = [p for p in members if p.ipsec and p.ipsec.type == "AH"]
@@ -179,6 +187,14 @@ def _build_session(pair: tuple[str, str], members: list[PacketAnalysisResult], o
     ah_info = _dataplane_info(ah_pkts) if ah_pkts else None
     state, evidence = _determine_state(ike_pkts, esp_pkts, ah_pkts)
     correlation = _correlation(members, ike_info, esp_info, ah_info)
+
+    has_transport = any(
+        (p.ipsec and getattr(p.ipsec, "encapsulation_mode", "TUNNEL") == "TRANSPORT")
+        or (p.ipsec and p.ipsec.ah and p.ipsec.ah.next_header in (1, 6, 17, 58))
+        for p in members
+    )
+    ipsec_mode = "TRANSPORT" if has_transport else "TUNNEL"
+    ip_version = 6 if any(p.ip and p.ip.version == 6 for p in members) else 4
 
     seed = f"{capture_id}|{pair[0]}|{pair[1]}|{start or ''}|{ordinal}"
     session_id = "IPSEC-" + hashlib.sha256(seed.encode()).hexdigest()[:12].upper()
@@ -201,6 +217,8 @@ def _build_session(pair: tuple[str, str], members: list[PacketAnalysisResult], o
         ah_packets=len(ah_pkts),
         ike_version=ike_info.version if ike_info else None,
         nat_traversal=any(p.ipsec.nat_traversal for p in members if p.ipsec),
+        ipsec_mode=ipsec_mode,
+        ip_version=ip_version,
         ike=ike_info,
         esp=esp_info,
         ah=ah_info,

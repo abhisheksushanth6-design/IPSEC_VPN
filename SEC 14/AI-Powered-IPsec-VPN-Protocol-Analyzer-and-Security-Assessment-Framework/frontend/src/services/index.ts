@@ -23,3 +23,9 @@ export { vulnerabilityService } from './vulnerabilityService';
 export { riskService } from './riskService';
 export { dashboardService } from './dashboardService';
 export { reportService } from './reportService';
+export { trafficAnalysisService } from './trafficAnalysisService';
+export { metadataExposureService } from './metadataExposureService';
+export { threatMatrixService } from './threatMatrixService';
+export { securityAssessmentService } from './securityAssessmentService';
+export { aiAnalysisService } from './aiAnalysisService';
+

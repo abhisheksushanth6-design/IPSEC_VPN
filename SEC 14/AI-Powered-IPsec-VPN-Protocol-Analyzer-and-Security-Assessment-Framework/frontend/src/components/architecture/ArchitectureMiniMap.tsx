@@ -12,8 +12,11 @@ const TONE: Record<string, string> = {
   'FOUNDATION CREATED': 'border-info/40 text-info',
   'FOUNDATION READY': 'border-info/40 text-info',
   'IN DEVELOPMENT': 'border-warning/40 text-warning',
+  READY: 'border-success/40 text-success',
   OPERATIONAL: 'border-success/40 text-success',
   IMPLEMENTED: 'border-success/40 text-success',
+  ERROR: 'border-danger/40 text-danger',
+  UNKNOWN: 'border-border text-muted',
 };
 
 /** Compact navigator: two rows of seven, each a jump to its card. */

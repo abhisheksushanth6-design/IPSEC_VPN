@@ -62,6 +62,8 @@ class SASummarySchema(_Model):
     association: str
     rekey_count: int
     session_id: Optional[str]
+    ipsec_mode: str = "TUNNEL"
+    ip_version: int = 4
 
 
 class ChildSASummarySchema(BaseModel):

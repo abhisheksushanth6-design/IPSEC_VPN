@@ -113,8 +113,26 @@ export function VulnerabilitiesPage() {
     }
   };
 
+  const handleExportFindings = async () => {
+    try {
+      const data = await vulnerabilityService.exportFindings();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `vulnerability_findings_report_${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      console.error('Failed to export findings:', err);
+      setErrorMessage(err?.message || 'Failed to export findings report');
+    }
+  };
+
   const handleUpdateFindingStatus = async (
-    findingId: number,
+    findingId: string | number,
     newStatus: FindingStatus,
     note?: string
   ) => {
@@ -202,6 +220,7 @@ export function VulnerabilitiesPage() {
         status={status}
         onRefresh={handleRefresh}
         onRunScan={() => handleRunScan(false)}
+        onExport={handleExportFindings}
         refreshing={refreshing}
         scanning={scanning}
       />
@@ -262,7 +281,7 @@ export function VulnerabilitiesPage() {
               }`}
             >
               <ShieldAlert className="h-4 w-4" />
-              <span>Vulnerability Findings</span>
+              <span>Security Assessment Findings</span>
               <span className="rounded-full bg-surface-subtle px-2 py-0.5 text-[11px] font-mono text-text-secondary">
                 {findings.length}
               </span>

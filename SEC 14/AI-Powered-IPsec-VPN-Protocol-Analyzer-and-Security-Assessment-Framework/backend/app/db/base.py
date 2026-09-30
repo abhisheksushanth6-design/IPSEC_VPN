@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 
-from sqlalchemy import Engine, create_engine
+from sqlite3 import Connection as SQLite3Connection
+
+from sqlalchemy import Engine, create_engine, event
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from app.core.config import get_settings
@@ -12,6 +14,18 @@ from app.core.config import get_settings
 
 class Base(DeclarativeBase):
     """Declarative base shared by every ORM model in the project."""
+
+
+@event.listens_for(Engine, "connect")
+def _set_sqlite_pragma(dbapi_connection, connection_record):
+    """Enforce foreign keys, WAL journal mode, and concurrency settings on SQLite."""
+    if isinstance(dbapi_connection, SQLite3Connection):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA synchronous=NORMAL")
+        cursor.execute("PRAGMA busy_timeout=5000")
+        cursor.close()
 
 
 def _create_engine() -> Engine:

@@ -15,9 +15,7 @@ export function SecuritySummary({ data }: SecuritySummaryProps) {
   const rows: Array<{ label: string; id: string }> = [
     { label: 'VPN sessions', id: 'sessions' },
     { label: 'Security Associations', id: 'sas' },
-    { label: 'AI anomalies', id: 'anomalies' },
-    { label: 'Drift events', id: 'drift' },
-    { label: 'Vulnerabilities', id: 'vulnerabilities' },
+    { label: 'Packets analyzed', id: 'packets' },
   ];
 
   return (
@@ -29,6 +27,12 @@ export function SecuritySummary({ data }: SecuritySummaryProps) {
           ) : (
             <StatusBadge status="NOT INITIALIZED" size="sm" />
           )}
+        </DataRow>
+
+        <DataRow label="Security Assessment findings">
+          <span className="font-mono tabular-nums">
+            {data.vulnerabilities ? data.vulnerabilities.reduce((acc, v) => acc + v.count, 0) : 0}
+          </span>
         </DataRow>
 
         {rows.map((row) => {

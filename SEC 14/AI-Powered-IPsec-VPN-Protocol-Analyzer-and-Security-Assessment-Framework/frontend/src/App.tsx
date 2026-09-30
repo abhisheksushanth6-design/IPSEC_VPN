@@ -2,7 +2,18 @@ import { lazy } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 
 import { AppLayout } from '@/components/layout';
+import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
+import { AuthProvider } from '@/context/AuthContext';
 import { SystemStateProvider } from '@/context/SystemStateContext';
+import { ThemeProvider } from '@/context/ThemeContext';
+
+// Authentication Pages
+import {
+  LoginPage,
+  RegisterPage,
+  ForgotPasswordPage,
+  ResetPasswordPage,
+} from '@/pages/Auth';
 
 // Route-level dynamic code splitting: each page loads on-demand as a discrete chunk
 import { OverviewPage } from '@/pages/Overview';
@@ -12,9 +23,7 @@ const ArchitecturePage = lazy(() =>
 const EnvironmentPage = lazy(() =>
   import('@/pages/Environment/EnvironmentPage').then((m) => ({ default: m.EnvironmentPage }))
 );
-const LiveMonitorPage = lazy(() =>
-  import('@/pages/LiveMonitor').then((m) => ({ default: m.LiveMonitorPage }))
-);
+import { LiveMonitorPage } from '@/pages/LiveMonitor';
 const PacketAnalysisPage = lazy(() =>
   import('@/pages/PacketAnalysis').then((m) => ({ default: m.PacketAnalysisPage }))
 );
@@ -36,12 +45,19 @@ const DriftDetectionPage = lazy(() =>
 const AIAnomaliesPage = lazy(() =>
   import('@/pages/AIAnomalies').then((m) => ({ default: m.AIAnomaliesPage }))
 );
+const TrafficAnalysisPage = lazy(() =>
+  import('@/pages/TrafficAnalysis').then((m) => ({ default: m.TrafficAnalysisPage }))
+);
+const MetadataExposurePage = lazy(() =>
+  import('@/pages/MetadataExposure').then((m) => ({ default: m.MetadataExposurePage }))
+);
+const ThreatMatrixPage = lazy(() =>
+  import('@/pages/ThreatMatrix').then((m) => ({ default: m.ThreatMatrixPage }))
+);
 const VulnerabilitiesPage = lazy(() =>
   import('@/pages/Vulnerabilities').then((m) => ({ default: m.VulnerabilitiesPage }))
 );
-const RiskAssessmentPage = lazy(() =>
-  import('@/pages/RiskAssessment').then((m) => ({ default: m.RiskAssessmentPage }))
-);
+import { RiskAssessmentPage } from '@/pages/RiskAssessment';
 const ReportsPage = lazy(() =>
   import('@/pages/Reports').then((m) => ({ default: m.ReportsPage }))
 );
@@ -53,42 +69,60 @@ const NotFoundPage = lazy(() =>
 );
 
 /**
- * Application routes. Every sidebar destination resolves to a real page
- * component; none are left unrouted.
+ * Application routes.
+ * Public routes: /login, /register, /forgot-password, /reset-password
+ * Protected routes: all IPsec analyzer pages protected by ProtectedRoute
  */
 export default function App() {
   return (
-    <SystemStateProvider>
-      <Routes>
-        <Route element={<AppLayout />}>
-          <Route index element={<Navigate to="/overview" replace />} />
-          <Route path="/overview" element={<OverviewPage />} />
-          <Route path="/architecture" element={<ArchitecturePage />} />
-          <Route path="/environment" element={<EnvironmentPage />} />
+    <ThemeProvider>
+      <AuthProvider>
+        <SystemStateProvider>
+          <Routes>
+            {/* Public Authentication Pages */}
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
 
-          <Route path="/live-monitor" element={<LiveMonitorPage />} />
-          <Route path="/packet-analysis" element={<PacketAnalysisPage />} />
-          <Route path="/ipsec-sessions" element={<IPSecSessionsPage />} />
+            {/* Protected Application Routes */}
+            <Route element={<ProtectedRoute />}>
+              <Route element={<AppLayout />}>
+                <Route index element={<Navigate to="/overview" replace />} />
+                <Route path="/overview" element={<OverviewPage />} />
+                <Route path="/architecture" element={<ArchitecturePage />} />
+                <Route path="/environment" element={<EnvironmentPage />} />
 
-          <Route path="/sa-lifecycle" element={<SALifecyclePage />} />
-          <Route path="/feature-engineering" element={<FeatureEngineeringPage />} />
-          <Route path="/baseline-profiling" element={<BaselineProfilesPage />} />
-          <Route path="/baseline-profiles" element={<Navigate to="/baseline-profiling" replace />} />
-          <Route path="/drift-detection" element={<DriftDetectionPage />} />
-          <Route path="/security-drift" element={<Navigate to="/drift-detection" replace />} />
-          <Route path="/ai-anomaly-detection" element={<AIAnomaliesPage />} />
-          <Route path="/ai-anomalies" element={<Navigate to="/ai-anomaly-detection" replace />} />
-          <Route path="/vulnerabilities" element={<VulnerabilitiesPage />} />
-          <Route path="/vulnerability-engine" element={<Navigate to="/vulnerabilities" replace />} />
-          <Route path="/security-rules" element={<Navigate to="/vulnerabilities" replace />} />
-          <Route path="/risk-assessment" element={<RiskAssessmentPage />} />
+                <Route path="/live-monitor" element={<LiveMonitorPage />} />
+                <Route path="/packet-analysis" element={<PacketAnalysisPage />} />
+                <Route path="/ipsec-sessions" element={<IPSecSessionsPage />} />
 
-          <Route path="/reports" element={<ReportsPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/sa-lifecycle" element={<SALifecyclePage />} />
+                <Route path="/feature-engineering" element={<FeatureEngineeringPage />} />
+                <Route path="/baseline-profiling" element={<BaselineProfilesPage />} />
+                <Route path="/baseline-profiles" element={<Navigate to="/baseline-profiling" replace />} />
+                <Route path="/drift-detection" element={<DriftDetectionPage />} />
+                <Route path="/security-drift" element={<Navigate to="/drift-detection" replace />} />
+                <Route path="/ai-anomaly-detection" element={<AIAnomaliesPage />} />
+                <Route path="/ai-anomalies" element={<Navigate to="/ai-anomaly-detection" replace />} />
+                <Route path="/traffic-analysis" element={<TrafficAnalysisPage />} />
+                <Route path="/ai-classification" element={<Navigate to="/traffic-analysis" replace />} />
+                <Route path="/metadata-exposure" element={<MetadataExposurePage />} />
+                <Route path="/threat-matrix" element={<ThreatMatrixPage />} />
+                <Route path="/vulnerabilities" element={<VulnerabilitiesPage />} />
+                <Route path="/vulnerability-engine" element={<Navigate to="/vulnerabilities" replace />} />
+                <Route path="/security-rules" element={<Navigate to="/vulnerabilities" replace />} />
+                <Route path="/risk-assessment" element={<RiskAssessmentPage />} />
 
-          <Route path="*" element={<NotFoundPage />} />
-        </Route>
-      </Routes>
-    </SystemStateProvider>
+                <Route path="/reports" element={<ReportsPage />} />
+                <Route path="/settings" element={<SettingsPage />} />
+
+                <Route path="*" element={<NotFoundPage />} />
+              </Route>
+            </Route>
+          </Routes>
+        </SystemStateProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

@@ -25,13 +25,15 @@ export function BaselineHeader({
             <Fingerprint className="h-5 w-5" />
           </div>
           <h1 className="text-xl font-bold tracking-tight text-text-primary">
-            SESSION FINGERPRINTING & BASELINE PROFILING
+            IPSEC SESSION FINGERPRINTING
           </h1>
           <BaselineEngineBadge state={state} reachable={reachable} />
         </div>
         <p className="text-xs text-muted max-w-3xl">
-          Establish behavioral fingerprints and reference baselines from observed IPsec VPN session features.
-          Purely descriptive statistical models representing observed normal behaviors.
+          Observable flow characteristics (packet sizes, timing, directionality, and burst dynamics) are converted into compact session fingerprints that empower AI Traffic Classification without payload decryption.
+          <span className="block mt-1 font-mono text-[11px] text-cyan-400">
+            Flow: Feature Extraction &rarr; IPsec Session Fingerprinting &rarr; AI Traffic Classification
+          </span>
         </p>
       </div>
 

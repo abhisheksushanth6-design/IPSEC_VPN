@@ -17,7 +17,7 @@ interface ArchitecturePipelineProps {
  */
 export function ArchitecturePipeline({ layers, selectedNumber, onSelect }: ArchitecturePipelineProps) {
   return (
-    <ol aria-label="14-layer processing pipeline" className="space-y-1">
+    <ol aria-label="10-layer processing pipeline" className="space-y-1">
       {ARCHITECTURE_CATEGORIES.map((group, groupIndex) => {
         const members = layers.filter((l) => l.number >= group.from && l.number <= group.to);
         const isLast = groupIndex === ARCHITECTURE_CATEGORIES.length - 1;

@@ -113,6 +113,13 @@ class FeatureExtractionService:
         with SessionLocal() as db:
             row = db.get(IPsecSession, session_id)
             if row is None or row.capture_id != capture_id:
+                from app.services.session_service import session_service
+                try:
+                    session_service.discover()
+                except Exception:
+                    pass
+                row = db.get(IPsecSession, session_id)
+            if row is None or row.capture_id != capture_id:
                 raise PacketServiceError(
                     "ENTITY_NOT_FOUND", "No session with that identifier exists for the loaded capture.", 404
                 )
@@ -125,6 +132,13 @@ class FeatureExtractionService:
     def _build_sa_vector(self, sa_id: str, capture_id: str) -> FeatureVector:
         with SessionLocal() as db:
             row = db.get(SecurityAssociationRow, sa_id)
+            if row is None or row.capture_id != capture_id:
+                from app.services.sa_lifecycle_service import sa_lifecycle_service
+                try:
+                    sa_lifecycle_service.discover()
+                except Exception:
+                    pass
+                row = db.get(SecurityAssociationRow, sa_id)
             if row is None or row.capture_id != capture_id:
                 raise PacketServiceError(
                     "ENTITY_NOT_FOUND", "No Security Association with that identifier exists for the loaded capture.", 404
@@ -172,6 +186,8 @@ class FeatureExtractionService:
             esp_packets=row.esp_packets,
             ah_packets=row.ah_packets,
             nat_traversal=bool(row.nat_traversal),
+            ipsec_mode=getattr(row, "ipsec_mode", "TUNNEL"),
+            ip_version=getattr(row, "ip_version", 4),
             start_time=row.start_time,
             end_time=row.end_time,
             duration_seconds=row.duration_seconds,
@@ -309,16 +325,35 @@ class FeatureExtractionService:
 
         with SessionLocal() as db:
             if capture_id:
-                sessions_available = bool(
-                    db.scalar(select(func.count()).select_from(IPsecSession).where(IPsecSession.capture_id == capture_id))
-                )
-                sas_available = bool(
-                    db.scalar(
-                        select(func.count())
-                        .select_from(SecurityAssociationRow)
-                        .where(SecurityAssociationRow.capture_id == capture_id)
-                    )
-                )
+                session_count = db.scalar(
+                    select(func.count()).select_from(IPsecSession).where(IPsecSession.capture_id == capture_id)
+                ) or 0
+                sa_count = db.scalar(
+                    select(func.count())
+                    .select_from(SecurityAssociationRow)
+                    .where(SecurityAssociationRow.capture_id == capture_id)
+                ) or 0
+                if (session_count == 0 or sa_count == 0) and packet_service.all_packets():
+                    if session_count == 0:
+                        from app.services.session_service import session_service
+                        try:
+                            session_service.discover()
+                            session_count = db.scalar(
+                                select(func.count()).select_from(IPsecSession).where(IPsecSession.capture_id == capture_id)
+                            ) or 0
+                        except Exception:
+                            pass
+                    if sa_count == 0:
+                        from app.services.sa_lifecycle_service import sa_lifecycle_service
+                        try:
+                            sa_lifecycle_service.discover()
+                            sa_count = db.scalar(
+                                select(func.count()).select_from(SecurityAssociationRow).where(SecurityAssociationRow.capture_id == capture_id)
+                            ) or 0
+                        except Exception:
+                            pass
+                sessions_available = session_count > 0
+                sas_available = sa_count > 0
                 rows = list(
                     db.scalars(select(FeatureVectorRow).where(FeatureVectorRow.capture_id == capture_id))
                 )
@@ -384,6 +419,15 @@ class FeatureExtractionService:
                 )
             }
             if entity_type == "SESSION":
+                session_count = db.scalar(
+                    select(func.count()).select_from(IPsecSession).where(IPsecSession.capture_id == capture_id)
+                ) or 0
+                if session_count == 0 and packet_service.all_packets():
+                    from app.services.session_service import session_service
+                    try:
+                        session_service.discover()
+                    except Exception:
+                        pass
                 rows = list(
                     db.scalars(
                         select(IPsecSession)
@@ -408,6 +452,17 @@ class FeatureExtractionService:
                     else "No sessions have been discovered for this capture. Run discovery in IPsec Sessions."
                 )
             elif entity_type == "SA":
+                sa_count = db.scalar(
+                    select(func.count())
+                    .select_from(SecurityAssociationRow)
+                    .where(SecurityAssociationRow.capture_id == capture_id)
+                ) or 0
+                if sa_count == 0 and packet_service.all_packets():
+                    from app.services.sa_lifecycle_service import sa_lifecycle_service
+                    try:
+                        sa_lifecycle_service.discover()
+                    except Exception:
+                        pass
                 rows = list(
                     db.scalars(
                         select(SecurityAssociationRow)
@@ -494,13 +549,27 @@ class FeatureExtractionService:
             return self._row_to_schema(row)
 
     def for_entity(self, entity_type: str, entity_id: str) -> FeatureVectorSchema:
+        capture_id = packet_service.capture_id
         with SessionLocal() as db:
-            row = db.scalar(
-                select(FeatureVectorRow).where(
-                    FeatureVectorRow.entity_type == entity_type.upper(),
-                    FeatureVectorRow.entity_id == entity_id,
-                )
+            query = select(FeatureVectorRow).where(
+                FeatureVectorRow.entity_type == entity_type.upper(),
+                FeatureVectorRow.entity_id == entity_id,
             )
+            if capture_id:
+                query = query.where(FeatureVectorRow.capture_id == capture_id)
+            row = db.scalar(query)
+            if row is None and entity_type.upper() == "PACKET":
+                pkt = None
+                if entity_id.isdigit():
+                    pkt = packet_service.by_number(int(entity_id))
+                if pkt:
+                    pkt_query = select(FeatureVectorRow).where(
+                        FeatureVectorRow.entity_type == "PACKET",
+                        FeatureVectorRow.entity_id == pkt.id,
+                    )
+                    if capture_id:
+                        pkt_query = pkt_query.where(FeatureVectorRow.capture_id == capture_id)
+                    row = db.scalar(pkt_query)
             if row is None:
                 raise PacketServiceError(
                     "FEATURE_VECTOR_NOT_FOUND",

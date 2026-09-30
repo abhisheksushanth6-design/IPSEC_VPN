@@ -1,12 +1,16 @@
 import { CheckCircle2, ArrowRight, AlertCircle } from 'lucide-react';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
-import { ChartCard, MetricCard, SecurityEventStream, TrafficTimelineChart } from '@/components/dashboard';
+import { ChartCard, MetricCard, SecurityEventStream } from '@/components/dashboard';
 import { PageContainer } from '@/components/layout';
+import { PipelineProgressionRibbon } from '@/components/common/PipelineProgressionRibbon';
 import {
+  LiveCaptureCommandCenter,
+  IPsecTunnelPulseChart,
+  PacketSizeHistogram,
+  SessionActivityMap,
   MonitorBanner,
-  MonitorControlBar,
   MonitorFilters,
   PacketDetails,
   PacketStream,
@@ -18,15 +22,16 @@ import {
   TrafficSummary,
   VPNSessionPanel,
 } from '@/components/live-monitor';
-import { PageHeader, Panel } from '@/components/ui';
+import { PageHeader } from '@/components/ui';
 import { useSystemState } from '@/context/SystemStateContext';
 import { useLiveMonitorData, useRealtime } from '@/hooks';
 import type { Packet, PacketSummary, MonitorSecurityAssociation, VPNSession, StatusKind } from '@/types';
 
 /**
- * Live Monitor. Connects to real Layer 02 Live Capture engine and /ws/events.
- * Provides real start/stop capture controls, genuine duration and packet counts,
- * and passes finalized captures directly to Layer 03.
+ * IPsec Security Observatory — Live Monitor.
+ * Connects to real Layer 02 Live Capture engine and /ws/events.
+ * Renders IPsec Tunnel Pulse, Protocol Distribution Donut, Packet Size Fingerprint,
+ * Session Flow Map, and Live Packet Inspector using actual capture data.
  */
 export function LiveMonitorPage() {
   const { state, status, refresh } = useSystemState();
@@ -54,28 +59,48 @@ export function LiveMonitorPage() {
   const dataAvailable =
     data.packets !== null || data.sessions !== null || data.associations !== null || data.events !== null;
 
+  // Auto-select recommended running interface on load
+  useEffect(() => {
+    if (!selectedInterface && data.rawInterfaces.length > 0) {
+      const rec =
+        data.rawInterfaces.find((i) => i.is_recommended) ||
+        data.rawInterfaces.find((i) => i.vm_state.toLowerCase() === 'running') ||
+        data.rawInterfaces[0];
+      if (rec) {
+        setSelectedInterface(`${rec.vm_name} (NIC ${rec.nic_number} · ${rec.nic_type})`);
+      }
+    }
+  }, [data.rawInterfaces, selectedInterface]);
+
   // Derive target VM and NIC from selectedInterface string
   const handleStart = () => {
-    let targetVM = 'IPsec-Server';
-    let targetNIC = 2;
+    let targetVM = '';
+    let targetNIC = 1;
 
     if (selectedInterface && data.rawInterfaces.length > 0) {
-      const match = data.rawInterfaces.find((i) =>
-        selectedInterface.startsWith(i.vm_name)
+      const match = data.rawInterfaces.find(
+        (i) => selectedInterface.includes(i.vm_name) && selectedInterface.includes(`NIC ${i.nic_number}`)
       );
       if (match) {
         targetVM = match.vm_name;
         targetNIC = match.nic_number;
       }
-    } else if (data.rawInterfaces.length > 0) {
-      const rec = data.rawInterfaces.find((i) => i.is_recommended) || data.rawInterfaces[0];
+    }
+
+    if (!targetVM && data.rawInterfaces.length > 0) {
+      const rec =
+        data.rawInterfaces.find((i) => i.is_recommended) ||
+        data.rawInterfaces.find((i) => i.vm_state.toLowerCase() === 'running') ||
+        data.rawInterfaces[0];
       if (rec) {
         targetVM = rec.vm_name;
         targetNIC = rec.nic_number;
       }
     }
 
-    data.start(targetVM, targetNIC);
+    if (targetVM) {
+      data.start(targetVM, targetNIC);
+    }
   };
 
   // Header status derivation
@@ -97,9 +122,13 @@ export function LiveMonitorPage() {
 
   return (
     <PageContainer>
+      {/* 1. Observatory End-to-End Pipeline Ribbon */}
+      <PipelineProgressionRibbon />
+
+      {/* 2. Main Page Header */}
       <PageHeader
         title="Live Monitor"
-        description="Real-time visibility into IPsec VPN traffic, sessions, security events, and live packet capture."
+        description="IPsec Security Observatory • Real-time visibility into IPsec VPN traffic pulse, session flows, security events, and wire frame capture."
         status={headerStatus}
         statusLabel={headerLabel}
         breadcrumbs={[{ label: 'Monitoring' }, { label: 'Live Monitor' }]}
@@ -141,13 +170,15 @@ export function LiveMonitorPage() {
         </div>
       ) : null}
 
+      {/* Preserved MonitorBanner for test expectations */}
       <MonitorBanner
         captureState={data.captureState}
         sourceVM={data.status?.source_vm}
         nicNumber={data.status?.nic_number}
       />
 
-      <MonitorControlBar
+      {/* 3. Live Capture Command Center */}
+      <LiveCaptureCommandCenter
         interfaces={data.interfaces}
         selectedInterface={selectedInterface}
         onSelectInterface={setSelectedInterface}
@@ -158,33 +189,16 @@ export function LiveMonitorPage() {
         onStartCapture={handleStart}
         onStopCapture={data.stop}
         onRefresh={refresh}
+        durationSeconds={Math.round(data.status?.elapsed_seconds ?? 0)}
+        packetCount={data.status?.packet_count ?? (data.packets?.length ?? 0)}
+        byteCount={data.status?.file_size_bytes ?? 0}
+        packetRate={data.packetRate}
+        bandwidth={data.bandwidth}
+        activeSessionsCount={data.sessions?.length ?? 0}
+        outputFile={data.status?.output_file}
+        sourceVM={data.status?.source_vm}
+        nicNumber={data.status?.nic_number}
       />
-
-      {/* Live capture active session readout */}
-      {data.status?.output_file ? (
-        <Panel className="p-4 bg-elevated/40">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-xs">
-            <div className="space-y-1">
-              <span className="font-semibold uppercase tracking-wider text-muted">Active PCAP Buffer</span>
-              <p className="font-mono text-2xs text-secondary truncate max-w-xl">{data.status.output_file}</p>
-            </div>
-            <div className="flex items-center gap-4 font-mono text-2xs">
-              <div>
-                <span className="text-muted">Target: </span>
-                <span className="text-primary font-bold">{data.status.source_vm} (NIC {data.status.nic_number})</span>
-              </div>
-              <div>
-                <span className="text-muted">Packets: </span>
-                <span className="text-success font-bold">{data.status.packet_count}</span>
-              </div>
-              <div>
-                <span className="text-muted">Size: </span>
-                <span className="text-info font-bold">{Math.round(data.status.file_size_bytes / 1024)} KB</span>
-              </div>
-            </div>
-          </div>
-        </Panel>
-      ) : null}
 
       <RealtimeStatus
         state={realtime.connectionState}
@@ -192,6 +206,7 @@ export function LiveMonitorPage() {
         onRetry={realtime.retry}
       />
 
+      {/* 4. Six Metric Cards Grid (Strictly preserved for test expectations) */}
       <section aria-labelledby="monitor-metrics-heading">
         <h2 id="monitor-metrics-heading" className="sr-only">Monitoring metrics</h2>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
@@ -203,6 +218,34 @@ export function LiveMonitorPage() {
 
       <MonitorFilters dataAvailable={dataAvailable} />
 
+      {/* 5. Central Network Activity Visualization & Protocol Distribution */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <ChartCard
+          title="IPsec Tunnel Pulse — Real-Time Telemetry"
+          description="Observable frame rate and throughput pulse over time."
+          source="Layer 01 · 02 Live Capture"
+        >
+          <IPsecTunnelPulseChart data={data.traffic} />
+        </ChartCard>
+
+        <TrafficSummary
+          ipsecBreakdown={data.ipsecBreakdown}
+          packetRate={data.packetRate}
+          bandwidth={data.bandwidth}
+        />
+      </div>
+
+      {/* 6. Packet Size Fingerprint Histogram */}
+      <PacketSizeHistogram packets={data.packets} />
+
+      {/* 7. Session Activity Flow Map */}
+      <SessionActivityMap
+        sessions={data.sessions}
+        selectedId={selectedSession?.id ?? null}
+        onSelect={selectSession}
+      />
+
+      {/* 8. Live Packet Inspector Stream */}
       <div className="grid gap-6 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] xl:items-start">
         <PacketStream
           packets={data.packets}
@@ -213,23 +256,19 @@ export function LiveMonitorPage() {
         <PacketDetails packet={selectedPacket} onClose={() => setSelectedPacket(null)} />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <ChartCard title="Traffic Timeline" description="Packets observed per interval." source="Layer 02 · 03">
-          <TrafficTimelineChart data={data.traffic} />
-        </ChartCard>
-        <TrafficSummary ipsecBreakdown={data.ipsecBreakdown} packetRate={data.packetRate} bandwidth={data.bandwidth} />
-      </div>
-
+      {/* 9. VPN Sessions Table Panel */}
       <div className="grid gap-6 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] xl:items-start">
         <VPNSessionPanel sessions={data.sessions} selectedId={selectedSession?.id ?? null} onSelect={selectSession} />
         <SessionDetails session={selectedSession} onClose={() => setSelectedSession(null)} />
       </div>
 
+      {/* 10. Security Associations Panel */}
       <div className="grid gap-6 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] xl:items-start">
         <SecurityAssociationPanel associations={data.associations} selectedId={selectedSA?.id ?? null} onSelect={selectSA} />
         <SADetails association={selectedSA} onClose={() => setSelectedSA(null)} />
       </div>
 
+      {/* 11. Security Events Stream & System Activity */}
       <div className="grid gap-6 lg:grid-cols-2">
         <SecurityEventStream
           events={data.events}

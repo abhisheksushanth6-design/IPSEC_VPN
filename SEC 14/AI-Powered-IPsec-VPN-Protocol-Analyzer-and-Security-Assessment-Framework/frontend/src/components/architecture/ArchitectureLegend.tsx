@@ -2,9 +2,10 @@ import { StatusBadge } from '@/components/status';
 import type { ArchitectureStatus } from '@/types';
 
 const LEGEND: Array<{ status: ArchitectureStatus; meaning: string }> = [
-  { status: 'NOT INITIALIZED', meaning: 'Functionality not yet available' },
-  { status: 'FOUNDATION CREATED', meaning: 'Technical foundation exists' },
+  { status: 'OPERATIONAL', meaning: 'Layer operational and verified' },
   { status: 'FOUNDATION READY', meaning: 'Structure ready for implementation' },
+  { status: 'FOUNDATION CREATED', meaning: 'Technical foundation exists' },
+  { status: 'NOT INITIALIZED', meaning: 'Functionality not yet available' },
 ];
 
 export function ArchitectureLegend() {

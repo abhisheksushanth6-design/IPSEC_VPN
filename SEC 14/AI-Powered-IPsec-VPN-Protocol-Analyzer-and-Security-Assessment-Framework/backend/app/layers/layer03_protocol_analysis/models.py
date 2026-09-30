@@ -37,6 +37,7 @@ class IPLayer:
     fragment_offset: Optional[int] = None
     traffic_class: Optional[int] = None
     flow_label: Optional[int] = None
+    extension_headers: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -73,11 +74,37 @@ TransportLayer = TCPLayer | UDPLayer | ICMPLayer
 
 
 @dataclass
+class IKETransform:
+    type_id: int
+    type_name: str  # ENCR, PRF, INTEG, D-H, ESN
+    transform_id: int
+    transform_name: str
+    key_length: Optional[int] = None
+
+
+@dataclass
+class IKEProposal:
+    proposal_number: int
+    protocol_id: int
+    protocol_name: str  # IKE, ESP, AH
+    spi: Optional[str] = None
+    transforms: list[IKETransform] = field(default_factory=list)
+    encryption_algorithms: list[str] = field(default_factory=list)
+    integrity_algorithms: list[str] = field(default_factory=list)
+    prf_algorithms: list[str] = field(default_factory=list)
+    dh_groups: list[str] = field(default_factory=list)
+    esn: Optional[str] = None
+
+
+@dataclass
 class IKEPayload:
     type_number: int
     name: str
     length: int
     critical: bool
+    notify_type: Optional[int] = None
+    notify_name: Optional[str] = None
+    proposals: list[IKEProposal] = field(default_factory=list)
 
 
 @dataclass
@@ -90,11 +117,13 @@ class IKELayer:
     initiator_spi: str
     responder_spi: str
     message_id: int
-    flags: list[str]
-    length: int
-    payloads: list[IKEPayload]
-    payload_count: int
-    encrypted_payload: bool
+    flags: list[str] = field(default_factory=list)
+    length: int = 0
+    payloads: list[IKEPayload] = field(default_factory=list)
+    payload_count: int = 0
+    encrypted_payload: bool = False
+    proposals: list[IKEProposal] = field(default_factory=list)
+
 
 
 @dataclass
@@ -122,12 +151,13 @@ class AHLayer:
 @dataclass
 class IPsecAnalysis:
     type: Literal["IKE", "ESP", "AH"]
-    nat_traversal: bool
+    nat_traversal: bool = False
     nat_traversal_note: Optional[str] = None
     udp_port: Optional[int] = None
     ike: Optional[IKELayer] = None
     esp: Optional[ESPLayer] = None
     ah: Optional[AHLayer] = None
+    encapsulation_mode: Literal["TUNNEL", "TRANSPORT", "UNKNOWN"] = "TUNNEL"
 
 
 @dataclass
@@ -153,13 +183,13 @@ class PacketAnalysisResult:
     id: str
     number: int
     timestamp: str
-    captured_length: int
-    original_length: int
-    source: str
-    destination: str
-    protocol: DisplayProtocol
-    length: int
-    info: str
+    captured_length: int = 0
+    original_length: int = 0
+    source: str = ""
+    destination: str = ""
+    protocol: DisplayProtocol = "OTHER"
+    length: int = 0
+    info: str = ""
     layers: list[str] = field(default_factory=list)
     ethernet: Optional[EthernetLayer] = None
     ip: Optional[IPLayer] = None
@@ -179,3 +209,60 @@ class CaptureMetadata:
     link_type_name: str
     packet_count: int
     truncated: bool = False
+
+
+@dataclass
+class IPsecStreamSummary:
+    spi: str
+    protocol: Literal["ESP", "AH"]
+    source_ip: str
+    destination_ip: str
+    packet_count: int
+    total_bytes: int
+    min_sequence: int
+    max_sequence: int
+    sequence_gaps: int
+    sequence_replays: int
+    sequence_zero_count: int
+    nat_traversal: bool = False
+    encapsulation_mode: Literal["TUNNEL", "TRANSPORT", "UNKNOWN"] = "TUNNEL"
+
+
+@dataclass
+class TunnelEndpointSummary:
+    local_endpoint: str
+    remote_endpoint: str
+    protocol: str  # ESP, AH, IKE, or MIXED
+    ike_sa_count: int
+    child_sa_spis: list[str] = field(default_factory=list)
+    total_packets: int = 0
+    total_bytes: int = 0
+    encapsulation_mode: str = "TUNNEL"
+
+
+@dataclass
+class ProtocolAnomaly:
+    id: str
+    anomaly_type: str  # SEQ_REPLAY, SEQ_ZERO, SEQ_GAP_LARGE, WEAK_CRYPTO_PROPOSAL, CLEARTEXT_LEAK, etc.
+    severity: Literal["LOW", "MEDIUM", "HIGH", "CRITICAL"]
+    packet_number: Optional[int]
+    spi: Optional[str]
+    source_ip: Optional[str]
+    destination_ip: Optional[str]
+    description: str
+    evidence: dict = field(default_factory=dict)
+
+
+@dataclass
+class ProtocolAnalysisReport:
+    capture_id: Optional[str] = None
+    total_packets_analyzed: int = 0
+    ipsec_packets: int = 0
+    ike_summary: dict = field(default_factory=dict)
+    ipsec_streams: list[IPsecStreamSummary] = field(default_factory=list)
+    tunnel_endpoints: list[TunnelEndpointSummary] = field(default_factory=list)
+    anomalies: list[ProtocolAnomaly] = field(default_factory=list)
+    protocol_counts: dict[str, int] = field(default_factory=dict)
+    analysis_timestamp: str = ""
+    status: str = "READY"
+

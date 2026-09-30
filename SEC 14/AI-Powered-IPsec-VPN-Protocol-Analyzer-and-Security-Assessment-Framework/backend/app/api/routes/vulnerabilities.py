@@ -226,3 +226,18 @@ def get_vulnerability_stats(db: Session = Depends(get_db)) -> VulnerabilityStats
     """Retrieve aggregated vulnerability metrics grouped by severity, category, and lifecycle status."""
     svc = get_vulnerability_service()
     return svc.get_statistics(db)
+
+
+@router.get(
+    "/export",
+    summary="Export Vulnerability Audit Report",
+)
+def export_vulnerability_findings(
+    session_id: Optional[str] = Query(None, description="Filter export to specific session ID"),
+    capture_id: Optional[str] = Query(None, description="Filter export to specific capture ID"),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Export complete security findings, technical evidence, and rule catalog as structured JSON."""
+    svc = get_vulnerability_service()
+    return svc.export_findings(db, session_id=session_id, capture_id=capture_id)
+

@@ -73,6 +73,8 @@ class SessionSummarySchema(_Model):
     ah_packets: int
     ike_version: Optional[str]
     nat_traversal: bool
+    ipsec_mode: str = "TUNNEL"
+    ip_version: int = 4
 
 
 class SessionDetailSchema(SessionSummarySchema):

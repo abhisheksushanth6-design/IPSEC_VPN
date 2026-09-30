@@ -25,7 +25,7 @@ export function AIAnomalyHeader({
                 <BrainCircuit className="h-5 w-5 text-purple-400" />
               </div>
               <h1 className="text-xl font-bold tracking-tight text-text-primary">
-                AI / ML ANOMALY DETECTION ENGINE
+                SUPPLEMENTARY ANOMALY DETECTION
               </h1>
             </div>
             <ModelStatusBadge status={status} />

@@ -157,25 +157,25 @@ export function SessionRiskTab({ sessionId }: SessionRiskTabProps) {
       {/* 2. Sub-Score Breakdown Grid */}
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <div className="rounded border border-border/80 bg-surface p-2.5">
-          <div className="text-[11px] text-muted">Vulnerabilities (L09)</div>
+          <div className="text-[11px] text-muted">Security Assessment Findings</div>
           <div className="mt-1 text-base font-semibold text-primary">
             {breakdown.vulnerability_score.toFixed(1)} <span className="text-xs font-normal text-muted">/ 50</span>
           </div>
         </div>
         <div className="rounded border border-border/80 bg-surface p-2.5">
-          <div className="text-[11px] text-muted">AI/ML Anomaly (L08)</div>
+          <div className="text-[11px] text-muted">Supplementary ML Score</div>
           <div className="mt-1 text-base font-semibold text-primary">
             {breakdown.ml_score.toFixed(1)} <span className="text-xs font-normal text-muted">/ 30</span>
           </div>
         </div>
         <div className="rounded border border-border/80 bg-surface p-2.5">
-          <div className="text-[11px] text-muted">Security Drift (L07)</div>
+          <div className="text-[11px] text-muted">Protocol Deviation Score</div>
           <div className="mt-1 text-base font-semibold text-primary">
             {breakdown.drift_score.toFixed(1)} <span className="text-xs font-normal text-muted">/ 12</span>
           </div>
         </div>
         <div className="rounded border border-border/80 bg-surface p-2.5">
-          <div className="text-[11px] text-muted">SA State & Protocol (L04)</div>
+          <div className="text-[11px] text-muted">SA &amp; Protocol State (L04)</div>
           <div className="mt-1 text-base font-semibold text-primary">
             {breakdown.state_score.toFixed(1)} <span className="text-xs font-normal text-muted">/ 8</span>
           </div>

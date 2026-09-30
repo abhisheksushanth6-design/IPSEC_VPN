@@ -64,6 +64,19 @@ export const riskService = {
     });
   },
 
+  /** Get assessment by unique record ID */
+  async getAssessmentById(assessmentId: string): Promise<RiskAssessmentResponse> {
+    return requestJson<RiskAssessmentResponse>(`/api/risk/assessments/${encodeURIComponent(assessmentId)}`);
+  },
+
+  /** Export risk assessments in structured JSON format */
+  async exportAssessments(sessionId?: string, limit: number = 200): Promise<any> {
+    const params = new URLSearchParams();
+    if (sessionId) params.set('session_id', sessionId);
+    params.set('limit', limit.toString());
+    return requestJson<any>(`/api/risk/export?${params.toString()}`);
+  },
+
   /** Get operational status of Layer 10 */
   async getStatus(): Promise<any> {
     return requestJson<any>('/api/risk/status');

@@ -64,6 +64,8 @@ class SessionRecord:
     ike_version: Optional[str] = None
     #: `detail_json["ike"]` from Section 6, when the session carried IKE.
     ike_detail: Optional[dict] = field(default=None)
+    ipsec_mode: str = "TUNNEL"
+    ip_version: int = 4
 
 
 def calculate_session_features(
@@ -83,6 +85,7 @@ def calculate_session_features(
     _add_direction(fs, session, members, have_packets, packet_detail)
     _add_ratios(fs, session, members, have_packets, packet_detail)
     _add_ike(fs, session, members, have_packets, packet_detail)
+    _add_profiling_features(fs, session, members, have_packets, packet_detail)
     return fs
 
 
@@ -98,6 +101,8 @@ def _add_counts(fs: FeatureSet, session: SessionRecord) -> None:
     fs.add("session_state", session.state)
     fs.add("session_direction", session.direction)
     fs.add("nat_traversal_observed", bool(session.nat_traversal))
+    fs.add("ipsec_mode", getattr(session, "ipsec_mode", "TUNNEL"))
+    fs.add("ip_version", int(getattr(session, "ip_version", 4)))
 
 
 # ----- timing --------------------------------------------------------------- #
@@ -363,3 +368,75 @@ def _retransmissions(ike_layers: list[tuple[PacketAnalysisResult, object]]) -> O
         key = (packet.ip.source, getattr(layer, "message_id"), getattr(layer, "exchange_name"))
         seen[key] = seen.get(key, 0) + 1
     return sum(count - 1 for count in seen.values() if count > 1)
+
+
+def _add_profiling_features(
+    fs: FeatureSet,
+    session: SessionRecord,
+    members: list[PacketAnalysisResult],
+    have_packets: bool,
+    packet_detail: str,
+) -> None:
+    if not have_packets or not members:
+        fs.missing("iat_coefficient_of_variation", packet_detail)
+        fs.missing("small_packet_ratio", packet_detail)
+        fs.missing("mtu_packet_ratio", packet_detail)
+        fs.missing("chunk_burst_periodicity", packet_detail)
+        fs.missing("mos_score_estimate", packet_detail)
+        return
+
+    # 1. Packet size ratios
+    total = len(members)
+    small_count = sum(1 for p in members if p.original_length <= 160)
+    mtu_count = sum(1 for p in members if p.original_length >= 1200)
+    fs.add("small_packet_ratio", round_float(safe_divide(small_count, total) or 0.0), source=SRC_SESSION_PACKETS)
+    fs.add("mtu_packet_ratio", round_float(safe_divide(mtu_count, total) or 0.0), source=SRC_SESSION_PACKETS)
+
+    # 2. IAT coefficient of variation & MOS score
+    from .timing_features import interarrival_gaps, epoch
+    timestamps = [p.timestamp for p in members if p.timestamp]
+    gaps = interarrival_gaps(timestamps) if len(timestamps) >= 2 else []
+    if len(gaps) >= 2:
+        mean_iat = sum(gaps) / len(gaps)
+        var_iat = sum((g - mean_iat) ** 2 for g in gaps) / len(gaps)
+        std_iat = var_iat ** 0.5
+        cv = safe_divide(std_iat, mean_iat)
+        fs.add_or_missing("iat_coefficient_of_variation", round_float(cv), "Could not compute IAT coefficient of variation.", source=SRC_SESSION_PACKETS)
+
+        # Estimate MOS score (ITU-T G.107 E-model approximation for VoIP)
+        jitter_ms = std_iat * 1000.0
+        delay_penalty = min(30.0, jitter_ms * 0.8)
+        r_val = max(0.0, min(100.0, 93.2 - delay_penalty))
+        if r_val <= 0:
+            mos = 1.0
+        elif r_val >= 100:
+            mos = 4.5
+        else:
+            mos = 1.0 + 0.035 * r_val + r_val * (r_val - 60.0) * (100.0 - r_val) * 7e-6
+            mos = max(1.0, min(4.5, mos))
+        fs.add("mos_score_estimate", round_float(mos), source=SRC_SESSION_PACKETS)
+    else:
+        fs.missing("iat_coefficient_of_variation", "At least two timestamped packets are needed for IAT CV.")
+        fs.missing("mos_score_estimate", "At least two timestamped packets are needed for MOS estimation.")
+
+    # 3. Chunk burst periodicity (video streaming analysis)
+    if len(timestamps) >= 10:
+        times = sorted(t for t in (epoch(ts) for ts in timestamps) if t is not None)
+        if len(times) >= 10:
+            t0 = times[0]
+            buckets: dict[int, int] = {}
+            for t in times:
+                sec = int(t - t0)
+                buckets[sec] = buckets.get(sec, 0) + 1
+            mean_b = sum(buckets.values()) / max(1, len(buckets))
+            peaks = [sec for sec, cnt in sorted(buckets.items()) if cnt > mean_b * 1.5]
+            if len(peaks) >= 2:
+                peak_gaps = [peaks[i] - peaks[i-1] for i in range(1, len(peaks))]
+                periodicity = sum(peak_gaps) / len(peak_gaps)
+                fs.add("chunk_burst_periodicity", round_float(periodicity), source=SRC_SESSION_PACKETS)
+            else:
+                fs.missing("chunk_burst_periodicity", "Insufficient periodic chunk peaks observed in flow.")
+        else:
+            fs.missing("chunk_burst_periodicity", "Not enough timestamps for chunk periodicity.")
+    else:
+        fs.missing("chunk_burst_periodicity", "Flow packet count too small for burst periodicity.")

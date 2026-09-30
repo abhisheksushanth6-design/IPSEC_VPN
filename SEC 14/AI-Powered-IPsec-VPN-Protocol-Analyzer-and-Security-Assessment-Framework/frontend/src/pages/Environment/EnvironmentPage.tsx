@@ -144,9 +144,9 @@ export function EnvironmentPage() {
     );
   }
 
-  const clientVM = status?.vms.find((v) => v.role === 'client');
-  const serverVM = status?.vms.find((v) => v.role === 'server');
-  const analyzerVM = status?.vms.find((v) => v.role === 'analyzer');
+  const clientVM = status?.vms?.find((v) => v.role === 'client');
+  const serverVM = status?.vms?.find((v) => v.role === 'server');
+  const analyzerVM = status?.vms?.find((v) => v.role === 'analyzer');
 
   // Compute status badge styles
   const getVMStateBadge = (vm?: VMInfo) => {
@@ -205,11 +205,10 @@ export function EnvironmentPage() {
 
       {actionMessage ? (
         <div
-          className={`flex items-center gap-2 rounded border px-4 py-2.5 text-sm ${
-            actionMessage.type === 'success'
+          className={`flex items-center gap-2 rounded border px-4 py-2.5 text-sm ${actionMessage.type === 'success'
               ? 'border-success/30 bg-success/10 text-success'
               : 'border-danger/30 bg-danger/10 text-danger'
-          }`}
+            }`}
         >
           {actionMessage.type === 'success' ? (
             <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
@@ -230,20 +229,20 @@ export function EnvironmentPage() {
           </div>
           <div className="my-2">
             <div className="text-lg font-bold text-primary">
-              {status?.virtualbox.installed ? (
+              {status?.virtualbox?.installed ? (
                 <span className="text-success">READY</span>
               ) : (
                 <span className="text-danger">ERROR</span>
               )}
             </div>
             <div className="text-xs text-muted">
-              {status?.virtualbox.installed
+              {status?.virtualbox?.installed
                 ? `Version: ${status.virtualbox.version}`
-                : status?.virtualbox.error || 'VBoxManage not found'}
+                : status?.virtualbox?.error || 'VBoxManage not found'}
             </div>
           </div>
-          <div className="truncate text-2xs text-muted" title={status?.virtualbox.vboxmanage_path}>
-            {status?.virtualbox.vboxmanage_path}
+          <div className="truncate text-2xs text-muted" title={status?.virtualbox?.vboxmanage_path}>
+            {status?.virtualbox?.vboxmanage_path}
           </div>
         </Panel>
 
@@ -255,20 +254,20 @@ export function EnvironmentPage() {
           </div>
           <div className="my-2">
             <div className="text-lg font-bold text-primary">
-              {status?.host_only_network.available ? (
+              {status?.host_only_network?.available ? (
                 <span className="text-success">AVAILABLE</span>
               ) : (
                 <span className="text-danger">ERROR</span>
               )}
             </div>
             <div className="text-xs text-muted">
-              {status?.host_only_network.ip_address
+              {status?.host_only_network?.ip_address
                 ? `${status.host_only_network.ip_address}/${status.host_only_network.network_mask || '24'}`
                 : 'No IP assigned'}
             </div>
           </div>
           <div className="truncate text-2xs text-muted">
-            {status?.host_only_network.name || 'Adapter not detected'}
+            {status?.host_only_network?.name || 'Adapter not detected'}
           </div>
         </Panel>
 
@@ -326,7 +325,7 @@ export function EnvironmentPage() {
             Virtual Machine Cluster
           </h2>
           <span className="text-xs text-muted">
-            Running: {status?.health_summary.running_count ?? 0} / {status?.health_summary.total_count ?? 0}
+            Running: {status?.health_summary?.running_count ?? 0} / {status?.health_summary?.total_count ?? 0}
           </span>
         </div>
 
@@ -422,13 +421,12 @@ export function EnvironmentPage() {
               Live Verification Results
             </h2>
             <span
-              className={`rounded px-2.5 py-0.5 text-xs font-bold ${
-                verification.overall_status === 'PASS'
+              className={`rounded px-2.5 py-0.5 text-xs font-bold ${verification.overall_status === 'PASS'
                   ? 'bg-success/20 text-success'
                   : verification.overall_status === 'WARNING'
-                  ? 'bg-warning/20 text-warning'
-                  : 'bg-danger/20 text-danger'
-              }`}
+                    ? 'bg-warning/20 text-warning'
+                    : 'bg-danger/20 text-danger'
+                }`}
             >
               OVERALL: {verification.overall_status}
             </span>
@@ -452,15 +450,14 @@ export function EnvironmentPage() {
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-primary">{check.name}</span>
                     <span
-                      className={`text-2xs font-bold uppercase ${
-                        check.status === 'PASS'
+                      className={`text-2xs font-bold uppercase ${check.status === 'PASS'
                           ? 'text-success'
                           : check.status === 'WARNING'
-                          ? 'text-warning'
-                          : check.status === 'FAIL'
-                          ? 'text-danger'
-                          : 'text-muted'
-                      }`}
+                            ? 'text-warning'
+                            : check.status === 'FAIL'
+                              ? 'text-danger'
+                              : 'text-muted'
+                        }`}
                     >
                       {check.status}
                     </span>

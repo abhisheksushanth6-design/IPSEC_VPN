@@ -38,7 +38,7 @@ export function EmptyVulnerabilitiesState({
       </div>
       <h3 className="text-base font-semibold text-text-primary">No Security Rule Violations Detected</h3>
       <p className="mt-1 text-xs text-text-secondary max-w-md">
-        All evaluated IPsec VPN protocol states, cryptographic suites, SA lifecycles, and configuration parameters comply with active security rules and RFC standards.
+        All evaluated IPsec VPN protocol states, cryptographic suites, SA &amp; protocol states, and configuration parameters comply with active security rules and RFC standards.
       </p>
       <div className="mt-4 inline-flex items-center gap-2 rounded bg-surface-subtle px-3 py-1.5 text-xs font-mono text-emerald-400 border border-emerald-500/20">
         <span className="h-2 w-2 rounded-full bg-emerald-500" />

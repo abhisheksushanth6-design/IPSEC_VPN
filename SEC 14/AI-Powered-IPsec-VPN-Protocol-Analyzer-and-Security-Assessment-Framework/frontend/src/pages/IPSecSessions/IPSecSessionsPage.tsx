@@ -1,7 +1,7 @@
 import { AlertTriangle, X } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 
-import { SessionDetails, SessionFilters, SessionMetrics, SessionTable, SessionToolbar, engineBadge } from '@/components/ipsec-sessions';
+import { SessionDetails, SessionFilters, SessionMetrics, SessionTable, SessionToolbar, SessionFingerprintCard, engineBadge } from '@/components/ipsec-sessions';
 import { PageContainer } from '@/components/layout';
 import { PageHeader } from '@/components/ui';
 import { useIPsecSessions } from '@/hooks';
@@ -46,6 +46,7 @@ export function IPSecSessionsPage() {
       ) : null}
 
       <SessionMetrics status={controller.status} />
+      <SessionFingerprintCard />
       <SessionFilters controller={controller} />
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] xl:items-start">

@@ -20,14 +20,18 @@ from app.models.ml_anomaly import (
     TrainingDatasetRow,
 )
 from app.models.security_association import SALifecycleEventRow, SAPacketLink, SecurityAssociationRow
+from app.models.metadata_exposure import MetadataExposureRow
 from app.models.report import ReportRow
 from app.models.risk import RiskAssessmentRow
 from app.models.system_settings import SystemSetting
+from app.models.threat_matrix import ThreatMatrixRow
+from app.models.traffic_classification import TrafficClassificationRow
 from app.models.vulnerability import (
     FindingEvidenceRow,
     SecurityRuleRow,
     VulnerabilityFindingRow,
 )
+from app.models.user import PasswordResetToken, User, UserSession
 
 __all__ = [
     "SystemSetting",
@@ -53,4 +57,10 @@ __all__ = [
     "FindingEvidenceRow",
     "ReportRow",
     "RiskAssessmentRow",
+    "TrafficClassificationRow",
+    "MetadataExposureRow",
+    "ThreatMatrixRow",
+    "User",
+    "UserSession",
+    "PasswordResetToken",
 ]

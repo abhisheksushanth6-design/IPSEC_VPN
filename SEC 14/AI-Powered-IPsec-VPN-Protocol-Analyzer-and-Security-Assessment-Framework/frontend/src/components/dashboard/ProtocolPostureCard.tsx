@@ -30,7 +30,7 @@ export function ProtocolPostureCard({ posture }: ProtocolPostureCardProps) {
             to="/vulnerabilities"
             className="inline-flex items-center gap-1 text-xs text-secondary hover:text-info transition-colors"
           >
-            Rules <ArrowRight className="h-3 w-3" aria-hidden />
+            Assessment <ArrowRight className="h-3 w-3" aria-hidden />
           </Link>
         </div>
 

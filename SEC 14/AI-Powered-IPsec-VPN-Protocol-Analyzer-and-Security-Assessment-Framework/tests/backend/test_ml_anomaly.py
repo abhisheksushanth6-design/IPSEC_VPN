@@ -39,9 +39,9 @@ from app.layers.layer08_ai_ml.validators import (
 )
 from app.main import create_app
 from app.models.baseline import BaselineFeatureRow, BaselineProfileRow, BaselineSessionLinkRow
-from app.models.drift import DriftAnalysisRow
+from app.models.drift import DriftAnalysisRow, FeatureDriftRow
 from app.models.feature_vector import FeatureValueRow, FeatureVectorRow
-from app.models.ipsec_session import IPsecSession
+from app.models.ipsec_session import IPsecSession, SessionPacket
 from app.models.ml_anomaly import (
     MLModelRow,
     TrainingDatasetRow,
@@ -60,12 +60,14 @@ def setup_database():
         db.query(AnomalyAnalysisRow).delete()
         db.query(MLModelRow).delete()
         db.query(TrainingDatasetRow).delete()
+        db.query(FeatureDriftRow).delete()
         db.query(DriftAnalysisRow).delete()
         db.query(BaselineSessionLinkRow).delete()
         db.query(BaselineFeatureRow).delete()
         db.query(BaselineProfileRow).delete()
         db.query(FeatureValueRow).delete()
         db.query(FeatureVectorRow).delete()
+        db.query(SessionPacket).delete()
         db.query(IPsecSession).delete()
         db.commit()
     finally:

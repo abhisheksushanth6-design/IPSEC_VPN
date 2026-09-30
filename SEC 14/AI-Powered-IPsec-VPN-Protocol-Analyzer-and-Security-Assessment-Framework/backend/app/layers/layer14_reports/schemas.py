@@ -9,7 +9,7 @@ from __future__ import annotations
 from typing import Any, Literal, Optional
 from pydantic import BaseModel, ConfigDict, Field
 
-ReportType = Literal["FULL", "SESSION", "VULNERABILITY"]
+ReportType = Literal["FULL", "SESSION", "VULNERABILITY", "EXECUTIVE", "TECHNICAL"]
 ReportStatus = Literal["PENDING", "COMPLETED", "FAILED"]
 
 
@@ -20,7 +20,7 @@ class ReportGenerateRequest(BaseModel):
 
     report_type: ReportType = Field(
         "FULL",
-        description="Type of assessment report to produce (FULL, SESSION, VULNERABILITY).",
+        description="Type of assessment report to produce (FULL, SESSION, VULNERABILITY, EXECUTIVE, TECHNICAL).",
     )
     session_id: Optional[str] = Field(
         None,
@@ -59,11 +59,17 @@ class SecurityAssessmentReportData(BaseModel):
     capture: dict[str, Any]
     protocol: dict[str, Any]
     sa_lifecycle: dict[str, Any]
+    session_analysis: Optional[dict[str, Any]] = None
     features: dict[str, Any]
     baseline: dict[str, Any]
     drift: dict[str, Any]
     ml_anomaly: dict[str, Any]
     vulnerabilities: dict[str, Any]
     risk: dict[str, Any]
+    traffic_classification: Optional[dict[str, Any]] = None
+    metadata_exposure: Optional[dict[str, Any]] = None
+    threat_matrix: Optional[dict[str, Any]] = None
+    sih_security_assessment: Optional[dict[str, Any]] = None
+    data_provenance: Optional[dict[str, str]] = None
     recommendations: list[dict[str, Any]]
     appendix: dict[str, Any]

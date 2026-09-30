@@ -130,22 +130,36 @@ interface CategoryBadgeProps {
 }
 
 export function CategoryBadge({ category, className = '' }: CategoryBadgeProps) {
-  const styles: Record<RuleCategory, string> = {
+  const styles: Record<string, string> = {
     CRYPTO: 'bg-purple-500/10 text-purple-300 border-purple-500/30',
+    CRYPTOGRAPHIC: 'bg-purple-500/10 text-purple-300 border-purple-500/30',
     IKE: 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30',
     AUTH: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30',
+    AUTHENTICATION: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30',
     PROTOCOL: 'bg-indigo-500/10 text-indigo-300 border-indigo-500/30',
+    IPSEC_PROTOCOL: 'bg-indigo-500/10 text-indigo-300 border-indigo-500/30',
+    PROTOCOL_ANOMALY: 'bg-indigo-500/10 text-indigo-300 border-indigo-500/30',
     SA_LIFECYCLE: 'bg-amber-500/10 text-amber-300 border-amber-500/30',
     CONFIGURATION: 'bg-blue-500/10 text-blue-300 border-blue-500/30',
+    BEHAVIORAL: 'bg-teal-500/10 text-teal-300 border-teal-500/30',
+    TRAFFIC_ANALYSIS: 'bg-teal-500/10 text-teal-300 border-teal-500/30',
+    SYSTEM: 'bg-slate-500/10 text-slate-300 border-slate-500/30',
   };
 
-  const labels: Record<RuleCategory, string> = {
+  const labels: Record<string, string> = {
     CRYPTO: 'Cryptography',
+    CRYPTOGRAPHIC: 'Cryptography',
     IKE: 'IKE Negotiation',
     AUTH: 'Authentication',
+    AUTHENTICATION: 'Authentication',
     PROTOCOL: 'Protocol Integrity',
-    SA_LIFECYCLE: 'SA Lifecycle',
+    IPSEC_PROTOCOL: 'Protocol Integrity',
+    PROTOCOL_ANOMALY: 'Protocol Anomaly',
+    SA_LIFECYCLE: 'SA & Protocol State',
     CONFIGURATION: 'Configuration',
+    BEHAVIORAL: 'Behavioral',
+    TRAFFIC_ANALYSIS: 'Traffic Analysis',
+    SYSTEM: 'System',
   };
 
   return (

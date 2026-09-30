@@ -16,7 +16,7 @@ export function EmptyBaselineState({ state, onOpenBuildModal }: EmptyBaselineSta
         </div>
         <h2 className="text-base font-bold text-text-primary">No Packet Observations Loaded</h2>
         <p className="text-xs text-muted max-w-md mt-1 mb-5">
-          Session fingerprinting and baseline profiling require network observations from captured traffic.
+          IPsec session fingerprinting requires network observations from captured traffic.
           Load a pcap capture file to begin extracting protocol features.
         </p>
         <Link to="/packet-analysis">

@@ -30,8 +30,11 @@ function mockSessionBackend(mode: 'empty' | 'ready' | 'available') {
     if (forPacket) return json((fixture.packet_links as Record<string, unknown>)[forPacket[1]!] ?? { packet_id: forPacket[1], session_id: null, role: null });
     const detail = url.match(/\/api\/sessions\/(IPSEC-[0-9A-F]{12})$/);
     if (detail) return details[detail[1]!] ? json(details[detail[1]!]) : json({ error: 'SESSION_NOT_FOUND', message: 'No session with that identifier exists.' }, 404);
+    if (url.includes('/api/sessions/fingerprints')) {
+      return json({ capture_id: 'fixture.pcap', total_sessions: 0, sessions: [], metadata: {} });
+    }
     if (url.includes('/api/sessions?')) {
-      const p = new URL(url).searchParams;
+      const p = new URL(url, 'http://localhost').searchParams;
       let items = fixture.page.items;
       if (p.get('protocol') === 'IKE') items = items.filter((i) => i.ike_packets > 0);
       if (p.get('search')) items = items.filter((i) => [i.id, i.source, i.destination].some((f) => f.toLowerCase().includes(p.get('search')!.toLowerCase())));

@@ -26,6 +26,19 @@ export interface LiveCaptureInterfacesResponse {
   default_nic: number | null;
 }
 
+export interface LiveCapturePacketSummary {
+  packet_number: number;
+  timestamp: number;
+  source_ip: string;
+  destination_ip: string;
+  protocol: string;
+  source_port: number | null;
+  destination_port: number | null;
+  length: number;
+  summary: string;
+  is_ipsec: boolean;
+}
+
 export interface LiveCaptureStatusResponse {
   state: 'IDLE' | 'STARTING' | 'CAPTURING' | 'STOPPING' | 'INGESTING' | 'COMPLETED' | 'ERROR' | string;
   capture_id: string | null;
@@ -36,6 +49,7 @@ export interface LiveCaptureStatusResponse {
   elapsed_seconds: number;
   packet_count: number;
   file_size_bytes: number;
+  recent_packets?: LiveCapturePacketSummary[];
   error: string | null;
 }
 

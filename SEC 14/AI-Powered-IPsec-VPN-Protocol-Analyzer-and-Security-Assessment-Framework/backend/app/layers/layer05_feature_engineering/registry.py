@@ -175,6 +175,14 @@ _d("informational_exchange_observed", "Informational Exchange Observed", "An INF
 _d("delete_payload_observed", "Delete Payload Observed", "A DELETE payload was visible in the clear.", "SESSION", "IKE", "BOOLEAN", None, SRC_SESSION_IKE)
 _d("notify_payload_observed", "Notify Payload Observed", "A NOTIFY payload was visible in the clear.", "SESSION", "IKE", "BOOLEAN", None, SRC_SESSION_IKE)
 
+_d("ipsec_mode", "IPsec Encapsulation Mode", "IPsec encapsulation mode: TUNNEL or TRANSPORT.", "SESSION", "IPSEC", "CATEGORICAL", None, SRC_SESSION, normalization_method="CATEGORICAL_ENCODING")
+_d("ip_version", "IP Version", "Internet Protocol version: 4 or 6.", "SESSION", "PROTOCOL", "INTEGER", None, SRC_SESSION, minimum_expected_value=4, maximum_expected_value=6)
+_d("iat_coefficient_of_variation", "IAT Coeff. of Variation", "Ratio of interarrival standard deviation to mean (std / mean). Low values indicate isochronous streams such as VoIP RTP.", "SESSION", "TIMING", "FLOAT", "ratio", SRC_SESSION_PACKETS, minimum_expected_value=0)
+_d("small_packet_ratio", "Small Packet Ratio", "Share of session packets with on-the-wire length <= 160 bytes.", "SESSION", "TRAFFIC", "FLOAT", "ratio", SRC_SESSION_PACKETS, formula="count(len <= 160) / packet_count", minimum_expected_value=0, maximum_expected_value=1)
+_d("mtu_packet_ratio", "MTU Packet Ratio", "Share of session packets near MTU size (length >= 1200 bytes).", "SESSION", "TRAFFIC", "FLOAT", "ratio", SRC_SESSION_PACKETS, formula="count(len >= 1200) / packet_count", minimum_expected_value=0, maximum_expected_value=1)
+_d("chunk_burst_periodicity", "Chunk Burst Periodicity", "Estimated interval in seconds between significant chunk burst events (e.g. video streaming chunk downloads).", "SESSION", "TIMING", "FLOAT", "seconds", SRC_SESSION_PACKETS, minimum_expected_value=0)
+_d("mos_score_estimate", "Estimated MOS Score", "Estimated VoIP Mean Opinion Score (1.0 to 5.0) based on jitter and packet cadence.", "SESSION", "STATISTICAL", "FLOAT", "score", SRC_SESSION_PACKETS, minimum_expected_value=1.0, maximum_expected_value=5.0)
+
 # --------------------------------------------------------------------------- #
 # SA level
 # --------------------------------------------------------------------------- #

@@ -67,6 +67,8 @@ class ChildSA:
     parent_sa_id: Optional[str]
     association: Literal["CORRELATED", "UNKNOWN"]
     created_after_rekey: bool
+    ipsec_mode: str = "TUNNEL"
+    ip_version: int = 4
     packet_numbers: list[int] = field(default_factory=list)
     timeline: list[LifecycleEvent] = field(default_factory=list)
     observations: list[str] = field(default_factory=list)
@@ -103,6 +105,8 @@ class SecurityAssociation:
     state_history: list[tuple[Optional[str], SAState]]
     observations: list[str]
     failure: Optional[dict]
+    ipsec_mode: str = "TUNNEL"
+    ip_version: int = 4
     packet_numbers: list[int] = field(default_factory=list)
     security_parameters_available: bool = False
     traffic_selectors_available: bool = False
@@ -317,6 +321,8 @@ def _build_ike_sa(pair, ispi: str, members: list[PacketAnalysisResult], data_mem
         *(["Encrypted (SK) payloads observed; their contents are not visible to this engine."] if any(l.encrypted_payload for l in layers) else []),
         *observations,
     ]
+    ike_mode = "TRANSPORT" if any(p.ipsec and getattr(p.ipsec, "encapsulation_mode", "TUNNEL") == "TRANSPORT" for p in members) else "TUNNEL"
+    ike_ip_ver = 6 if any(p.ip and p.ip.version == 6 for p in members) else 4
     sa = SecurityAssociation(
         id=sa_id, type="IKE", state=state, start_time=start, last_seen=last, initiator=initiator, responder=responder,
         protocol="IKE", ike_version=versions[0] if len(versions) == 1 else "/".join(versions) or None,
@@ -326,6 +332,7 @@ def _build_ike_sa(pair, ispi: str, members: list[PacketAnalysisResult], data_mem
         payload_types=_unique(pl.name for l in layers for pl in l.payloads), flags_seen=_unique(f for l in layers for f in l.flags),
         nat_traversal=any(p.ipsec.nat_traversal for p in members if p.ipsec), child_sa_ids=[], parent_sa_id=None,
         association="DIRECT", rekey_count=rekey_count, capture_ended_in_state=state in ("ESTABLISHED", "ACTIVE", "REKEYING", "NEGOTIATING", "DETECTED"),
+        ipsec_mode=ike_mode, ip_version=ike_ip_ver,
         timeline=timeline, state_history=history, observations=observations, failure=failure,
         packet_numbers=[p.number for p in members],
     )
@@ -375,6 +382,12 @@ def _build_child_sa(pair, proto: str, spi: str, members, capture_id: str, parent
     if parent and parent.state == "TERMINATED" and parent.last_seen and end and parent.last_seen > end:
         observations.append("The parent IKE SA carried a DELETE after this SA's last traffic; whether that DELETE named this SA is not decodable.")
 
+    child_mode = "TRANSPORT" if any(
+        (p.ipsec and getattr(p.ipsec, "encapsulation_mode", "TUNNEL") == "TRANSPORT")
+        or (p.ipsec and p.ipsec.ah and p.ipsec.ah.next_header in (1, 6, 17, 58))
+        for p in members
+    ) else "TUNNEL"
+    child_ip_ver = 6 if any(p.ip and p.ip.version == 6 for p in members) else 4
     return SecurityAssociation(
         id=sa_id, type="CHILD", state="ACTIVE", start_time=start, last_seen=end,
         initiator=first.ip.source, responder=first.ip.destination, protocol=proto,  # type: ignore[union-attr]
@@ -383,6 +396,7 @@ def _build_child_sa(pair, proto: str, spi: str, members, capture_id: str, parent
         exchange_types=[], message_ids=[], payload_types=[], flags_seen=[],
         nat_traversal=any(p.ipsec.nat_traversal for p in members if p.ipsec), child_sa_ids=[], parent_sa_id=parent.id if parent else None,
         association="CORRELATED" if parent else "UNKNOWN", rekey_count=0, capture_ended_in_state=True,
+        ipsec_mode=child_mode, ip_version=child_ip_ver,
         timeline=timeline, state_history=[(first.timestamp or None, "DETECTED"), (first.timestamp or None, "ACTIVE")],
         observations=observations, failure=None, packet_numbers=[p.number for p in members],
     )

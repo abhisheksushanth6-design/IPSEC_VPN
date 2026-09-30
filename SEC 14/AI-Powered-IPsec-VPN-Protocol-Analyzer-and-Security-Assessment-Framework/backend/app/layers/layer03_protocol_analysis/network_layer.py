@@ -59,6 +59,14 @@ def decode_ipv4(data: bytes) -> tuple[IPLayer, bytes]:
     return layer, data[ihl:end]
 
 
+IPV6_EXTENSION_HEADER_NAMES = {
+    0: "Hop-by-Hop Options",
+    43: "Routing",
+    44: "Fragment",
+    60: "Destination Options",
+}
+
+
 def decode_ipv6(data: bytes) -> tuple[IPLayer, bytes]:
     if len(data) < 40:
         raise TruncatedError("IPv6", 40, len(data))
@@ -69,9 +77,12 @@ def decode_ipv6(data: bytes) -> tuple[IPLayer, bytes]:
 
     payload = data[40 : 40 + payload_length] if payload_length else data[40:]
     fragmented = False
+    extension_headers_seen: list[str] = []
 
     # Walk extension headers until a transport or IPsec header is reached.
     while next_header in IPV6_EXTENSION_HEADERS or next_header == 44:
+        ext_name = IPV6_EXTENSION_HEADER_NAMES.get(next_header, f"Extension Header {next_header}")
+        extension_headers_seen.append(ext_name)
         if len(payload) < 8:
             raise TruncatedError("IPv6 extension header", 8, len(payload))
         if next_header == 44:  # Fragment header: fixed 8 bytes
@@ -97,5 +108,6 @@ def decode_ipv6(data: bytes) -> tuple[IPLayer, bytes]:
         traffic_class=(vtf >> 20) & 0xFF,
         flow_label=vtf & 0xFFFFF,
         more_fragments=fragmented if fragmented else None,
+        extension_headers=extension_headers_seen,
     )
     return layer, payload

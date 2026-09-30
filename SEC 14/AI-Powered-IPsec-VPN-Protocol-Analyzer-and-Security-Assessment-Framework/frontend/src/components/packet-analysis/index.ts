@@ -8,3 +8,5 @@ export { PacketTable } from './PacketTable';
 export { ProtocolSummary } from './ProtocolSummary';
 export { ProtocolTree, buildTree } from './ProtocolTree';
 export { PacketSessionLink } from './PacketSessionLink';
+export { ProtocolAnalysisReportPanel } from './ProtocolAnalysisReportPanel';
+

@@ -25,7 +25,7 @@ function mockSABackend(mode: 'empty' | 'ready' | 'active') {
     const d = url.match(/\/api\/sas\/(SA-[0-9A-F]{12})$/);
     if (d) return details[d[1]!] ? json(details[d[1]!]) : json({ error: 'SA_NOT_FOUND', message: 'No Security Association with that identifier exists.' }, 404);
     if (url.includes('/api/sas?')) {
-      const p = new URL(url).searchParams; let items = fixture.page.items;
+      const p = new URL(url, 'http://localhost').searchParams; let items = fixture.page.items;
       if (p.get('type')) items = items.filter((i) => i.type === p.get('type'));
       if (p.get('state')) items = items.filter((i) => i.state === p.get('state'));
       if (p.get('search')) items = items.filter((i) => [i.id, i.spi ?? '', i.initiator_spi ?? ''].some((f) => f.toLowerCase().includes(p.get('search')!.toLowerCase())));

@@ -57,6 +57,76 @@ export const reportService = {
   getDownloadUrl: (reportId: string): string =>
     `${appConfig.apiBaseUrl}/api/reports/${encodeURIComponent(reportId)}/download`,
 
+  /**
+   * Programmatically fetch and download report PDF using binary blob handling.
+   * Traps backend errors gracefully and triggers a reliable client-side file save.
+   */
+  downloadReportPdf: async (reportId: string, filename?: string): Promise<void> => {
+    const downloadUrl = reportService.getDownloadUrl(reportId);
+    const response = await fetch(downloadUrl, {
+      method: 'GET',
+      headers: {
+        Accept: 'application/pdf, application/json, */*',
+      },
+    });
+
+    if (!response.ok) {
+      let errorMessage = `Download failed with HTTP status ${response.status}`;
+      try {
+        const errorJson = await response.json();
+        if (errorJson.detail) {
+          errorMessage =
+            typeof errorJson.detail === 'object'
+              ? JSON.stringify(errorJson.detail)
+              : String(errorJson.detail);
+        } else if (errorJson.error) {
+          errorMessage = String(errorJson.error);
+        }
+      } catch {
+        // Non-JSON response
+      }
+      throw new Error(errorMessage);
+    }
+
+    const blob = await response.blob();
+
+    // Derive download filename: argument > Content-Disposition header > sensible default
+    let targetFilename = filename?.trim();
+    if (!targetFilename) {
+      const disposition =
+        response.headers.get('Content-Disposition') ||
+        response.headers.get('content-disposition');
+      if (disposition) {
+        const filenameMatch = disposition.match(
+          /filename\*?=(?:UTF-8'')?["']?([^"';]+)["']?/i,
+        );
+        if (filenameMatch && filenameMatch[1]) {
+          targetFilename = decodeURIComponent(filenameMatch[1].trim());
+        }
+      }
+    }
+    if (!targetFilename) {
+      targetFilename = `ipsec-assessment-${reportId.toLowerCase()}.pdf`;
+    }
+    if (!targetFilename.toLowerCase().endsWith('.pdf')) {
+      targetFilename += '.pdf';
+    }
+
+    const objectUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = objectUrl;
+    a.download = targetFilename;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+
+    // Revoke object URL after browser starts saving
+    setTimeout(() => {
+      window.URL.revokeObjectURL(objectUrl);
+    }, 1500);
+  },
+
   /** Delete a report record and remove its PDF file */
   delete: (reportId: string): Promise<{ deleted: boolean; id: string }> =>
     mutate<{ deleted: boolean; id: string }>(`/api/reports/${encodeURIComponent(reportId)}`, {

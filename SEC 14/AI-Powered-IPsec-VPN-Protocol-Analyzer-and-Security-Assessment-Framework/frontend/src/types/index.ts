@@ -82,3 +82,11 @@ export type * from './mlAnomaly';
 export type * from './vulnerability';
 export type * from './risk';
 export type * from './reports';
+export type * from './trafficClassification';
+export type * from './metadataExposure';
+export type * from './threatMatrix';
+export type * from './protocolAnalysis';
+export type * from './sessionFingerprint';
+export type * from './securityAssessment';
+export type * from './aiAnalysis';
+

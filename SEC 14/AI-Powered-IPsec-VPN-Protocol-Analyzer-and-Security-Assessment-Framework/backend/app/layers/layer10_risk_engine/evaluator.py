@@ -8,10 +8,13 @@ strictly from empirical upstream signals without synthetic values.
 from __future__ import annotations
 
 import logging
+import math
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
 from app.layers.layer10_risk_engine.schemas import (
+    DECISION_TO_ALIAS,
+    ALIAS_TO_DECISION,
     ContributingSignal,
     RiskEvidenceItem,
     RiskScoreBreakdown,
@@ -34,6 +37,10 @@ VULN_WEIGHTS: Dict[str, float] = {
     "LOW": 3.0,
     "INFO": 0.0,
 }
+
+# Finding lifecycle categorization
+ACTIVE_VULN_STATUSES = {"OPEN", "ACTIVE", "CONFIRMED"}
+INACTIVE_VULN_STATUSES = {"RESOLVED", "FALSE_POSITIVE", "SUPPRESSED"}
 
 # Drift severity weights
 DRIFT_WEIGHTS: Dict[str, float] = {
@@ -78,11 +85,89 @@ class RiskEvaluator:
     """Pure deterministic evaluator for computing bounded risk scores and policy decisions."""
 
     @staticmethod
+    def classify_risk_level(score: float) -> str:
+        """Deterministically map a bounded risk score to discrete risk band.
+
+        Bands:
+            LOW: [0.0, 19.9]
+            MEDIUM: [20.0, 44.9]
+            HIGH: [45.0, 69.9]
+            CRITICAL: [70.0, 100.0]
+        """
+        clamped = min(MAX_TOTAL_SCORE, max(0.0, round(score, 2)))
+        if clamped >= 70.0:
+            return "CRITICAL"
+        elif clamped >= 45.0:
+            return "HIGH"
+        elif clamped >= 20.0:
+            return "MEDIUM"
+        else:
+            return "LOW"
+
+    @staticmethod
+    def determine_decision(
+        score: float,
+        has_critical: bool = False,
+        has_high: bool = False,
+    ) -> Tuple[str, str]:
+        """Determine policy decision and standard alias.
+
+        Rules:
+            TERMINATE / BLOCK: score >= 70.0 or has_critical finding
+            RESTRICT / ISOLATE: score >= 45.0
+            INSPECT / WARN: score >= 20.0 or has_high finding
+            ALLOW / ALLOW: score < 20.0 and no critical/high finding
+
+        Returns:
+            (canonical_decision, decision_alias)
+        """
+        clamped = min(MAX_TOTAL_SCORE, max(0.0, round(score, 2)))
+        if clamped >= 70.0 or has_critical:
+            dec = "TERMINATE"
+        elif clamped >= 45.0:
+            dec = "RESTRICT"
+        elif clamped >= 20.0 or has_high:
+            dec = "INSPECT"
+        else:
+            dec = "ALLOW"
+
+        alias = DECISION_TO_ALIAS.get(dec, "ALLOW")
+        return dec, alias
+
+    @staticmethod
+    def count_severity_summary(findings: List[Dict[str, Any]]) -> Dict[str, int]:
+        """Count active security findings by severity."""
+        counts = {"CRITICAL": 0, "HIGH": 0, "MEDIUM": 0, "LOW": 0, "INFO": 0}
+        seen_ids = set()
+        for f in findings:
+            fid = f.get("id")
+            if fid and fid in seen_ids:
+                continue
+            if fid:
+                seen_ids.add(fid)
+            status = str(f.get("status", "OPEN")).upper()
+            if status in INACTIVE_VULN_STATUSES:
+                continue
+            sev = str(f.get("severity", "INFO")).upper()
+            if sev in counts:
+                counts[sev] += 1
+        return counts
+
+    @staticmethod
     def calculate_vulnerability_score(
-        findings: List[Dict[str, Any]]
+        findings: List[Dict[str, Any]],
     ) -> Tuple[float, List[ContributingSignal], List[RiskEvidenceItem], bool, bool]:
         """Compute vulnerability score (capped at 50.0) from findings.
-        
+
+        Applies:
+        1. Status filtering: Only OPEN, ACTIVE, CONFIRMED findings add active risk points.
+           RESOLVED, FALSE_POSITIVE, and SUPPRESSED findings contribute 0.0 points.
+        2. Confidence weighting: Effective score = base_weight * confidence (0.0 to 1.0).
+        3. Recurrence damping: For repeat occurrences on the same object, subsequent
+           occurrences contribute damped points = min(base_weight * 0.2 * log2(recurrence), base_weight * 0.5).
+        4. Deduplication: Duplicate records by finding ID are deduplicated.
+        5. Score clamping: Clamped strictly to [0.0, 50.0].
+
         Returns:
             (score, contributing_signals, evidence_items, has_critical, has_high)
         """
@@ -92,25 +177,92 @@ class RiskEvaluator:
         has_critical = False
         has_high = False
 
+        seen_finding_ids = set()
+        object_rule_counts: Dict[Tuple[str, str], int] = {}
+
         for f in findings:
+            fid = f.get("id")
+            if fid and fid in seen_finding_ids:
+                continue
+            if fid:
+                seen_finding_ids.add(fid)
+
+            rule_id = str(f.get("rule_id", "UNKNOWN-RULE"))
+            title = str(f.get("title", "Security Rule Finding"))
             sev = str(f.get("severity", "INFO")).upper()
-            weight = VULN_WEIGHTS.get(sev, 0.0)
-            if sev == "CRITICAL":
+            status = str(f.get("status", "OPEN")).upper()
+            obj_id = str(f.get("affected_object_id") or "")
+
+            # Confidence weighting (default 1.0)
+            raw_conf = f.get("confidence")
+            if raw_conf is not None:
+                try:
+                    conf = max(0.0, min(1.0, float(raw_conf)))
+                except (ValueError, TypeError):
+                    conf = 1.0
+            else:
+                conf = 1.0
+
+            # Recurrence count
+            raw_rec = f.get("recurrence_count") or f.get("occurrence_count")
+            if raw_rec is not None:
+                try:
+                    rec_count = max(1, int(raw_rec))
+                except (ValueError, TypeError):
+                    rec_count = 1
+            else:
+                rec_count = 1
+
+            rule_key = (rule_id, obj_id)
+            object_rule_counts[rule_key] = object_rule_counts.get(rule_key, 0) + 1
+            seen_index = object_rule_counts[rule_key]
+
+            base_weight = VULN_WEIGHTS.get(sev, 0.0)
+
+            # Check status triage
+            is_active = status in ACTIVE_VULN_STATUSES or status not in INACTIVE_VULN_STATUSES
+            if not is_active:
+                # Inactive / resolved finding: 0 active risk contribution
+                evidence.append(
+                    RiskEvidenceItem(
+                        source_layer="LAYER_09_VULNERABILITY_ENGINE",
+                        evidence_type="VULNERABILITY_FINDING",
+                        identifier=str(fid or rule_id),
+                        summary=f"[{sev}][STATUS: {status}] {rule_id}: {title} (affected: {obj_id or 'session'})",
+                        details={"status": status, "confidence": conf, "recurrence": rec_count, "excluded_from_score": True},
+                    )
+                )
+                continue
+
+            # Active finding calculation
+            effective_base = base_weight * conf
+            total_rec = max(rec_count, seen_index)
+            if total_rec > 1:
+                # Logarithmic damping for repeat occurrences
+                rec_damping = min(base_weight * 0.2 * math.log2(total_rec), base_weight * 0.5)
+            else:
+                rec_damping = 0.0
+
+            finding_points = round(effective_base + rec_damping, 2)
+            raw_score += finding_points
+
+            if sev == "CRITICAL" and conf >= 0.5:
                 has_critical = True
-            elif sev == "HIGH":
+            elif sev == "HIGH" and conf >= 0.5:
                 has_high = True
 
-            rule_id = f.get("rule_id", "UNKNOWN-RULE")
-            title = f.get("title", "Security Rule Finding")
-            raw_score += weight
-
-            if weight > 0:
+            if finding_points > 0:
+                reason_rec = f" (recurrence={total_rec})" if total_rec > 1 else ""
+                reason_conf = f" [conf={conf:.2f}]" if conf < 1.0 else ""
                 signals.append(
                     ContributingSignal(
                         source="LAYER_09",
-                        contribution=weight,
-                        reason=f"Rule violation [{rule_id}] ({sev}): {title}",
-                        evidence_reference=f.get("id"),
+                        contribution=finding_points,
+                        reason=f"Rule violation [{rule_id}] ({sev}){reason_conf}{reason_rec}: {title}",
+                        evidence_reference=str(fid) if fid is not None else None,
+                        confidence=conf,
+                        finding_status=status,
+                        recurrence_count=total_rec,
                     )
                 )
 
@@ -118,12 +270,13 @@ class RiskEvaluator:
                 RiskEvidenceItem(
                     source_layer="LAYER_09_VULNERABILITY_ENGINE",
                     evidence_type="VULNERABILITY_FINDING",
-                    identifier=f.get("id") or rule_id,
-                    summary=f"[{sev}] {rule_id}: {title} (affected: {f.get('affected_object_id') or 'session'})",
+                    identifier=str(fid or rule_id),
+                    summary=f"[{sev}][{status}] {rule_id}: {title} (affected: {obj_id or 'session'})",
+                    details={"status": status, "confidence": conf, "recurrence": total_rec, "points": finding_points},
                 )
             )
 
-        clamped_score = min(MAX_VULNERABILITY_SCORE, round(raw_score, 2))
+        clamped_score = min(MAX_VULNERABILITY_SCORE, max(0.0, round(raw_score, 2)))
         return clamped_score, signals, evidence, has_critical, has_high
 
     @staticmethod
@@ -348,31 +501,15 @@ class RiskEvaluator:
         )
 
         # 3. Categorize Risk Band
-        # LOW [0.0, 19.9], MEDIUM [20.0, 44.9], HIGH [45.0, 69.9], CRITICAL [70.0, 100.0]
-        if total_risk_score >= 70.0:
-            risk_level = "CRITICAL"
-        elif total_risk_score >= 45.0:
-            risk_level = "HIGH"
-        elif total_risk_score >= 20.0:
-            risk_level = "MEDIUM"
-        else:
-            risk_level = "LOW"
+        risk_level = cls.classify_risk_level(total_risk_score)
 
         # 4. Determine Policy Decision
-        # ALLOW (score < 20 and no CRITICAL/HIGH finding)
-        # INSPECT ([20, 45) or score < 20 with HIGH finding)
-        # RESTRICT ([45, 70))
-        # TERMINATE (>= 70 or CRITICAL active protocol/security finding)
         has_critical_finding = has_critical_vuln or has_critical_protocol
-
-        if total_risk_score >= 70.0 or has_critical_finding:
-            decision = "TERMINATE"
-        elif total_risk_score >= 45.0:
-            decision = "RESTRICT"
-        elif total_risk_score >= 20.0 or has_high_vuln:
-            decision = "INSPECT"
-        else:
-            decision = "ALLOW"
+        decision, _ = cls.determine_decision(
+            total_risk_score,
+            has_critical=has_critical_finding,
+            has_high=has_high_vuln,
+        )
 
         # 5. Signal Completeness & Confidence
         available_signals: List[str] = []

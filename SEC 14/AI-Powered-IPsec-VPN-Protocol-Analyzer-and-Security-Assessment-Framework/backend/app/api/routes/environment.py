@@ -87,3 +87,27 @@ def verify_environment() -> EnvironmentVerificationResponse:
 def get_environment_evidence() -> EnvironmentEvidenceResponse:
     service = get_environment_service()
     return service.get_evidence()
+
+
+@router.get(
+    "/testbed-profiles",
+    summary="List supported SIH 26160 testbed configuration profiles",
+    description="Returns canonical IPsec configurations including Tunnel/Transport, AES-128/256, GCM/CBC, DH groups, PFS, and traffic profiles.",
+)
+def list_testbed_profiles() -> list[dict]:
+    service = get_environment_service()
+    return service.get_testbed_profiles()
+
+
+@router.post(
+    "/simulate-profile/{profile_id}",
+    summary="Simulate a target testbed configuration profile",
+    description="Generates, decodes, and discovers sessions for a target SIH testbed profile for rapid demonstration.",
+)
+def simulate_testbed_profile(profile_id: str) -> dict:
+    service = get_environment_service()
+    try:
+        return service.simulate_testbed_profile(profile_id)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+

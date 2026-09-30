@@ -1,4 +1,4 @@
-import { ArrowRight, Cable, AlertTriangle, ShieldAlert, GitCompare } from 'lucide-react';
+import { ArrowRight, Cable, AlertTriangle, ShieldAlert } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { SessionActivityItem } from '@/types';
 
@@ -28,7 +28,7 @@ export function SessionActivityTable({ sessions }: SessionActivityTableProps) {
         </Link>
       </div>
       <p className="mt-1 text-xs text-secondary">
-        Correlated session streams with ML anomaly detections, security drift, and vulnerability findings.
+        Correlated session streams with AI traffic classification, protocol state, and security assessment findings.
       </p>
 
       {!hasSessions ? (
@@ -45,7 +45,7 @@ export function SessionActivityTable({ sessions }: SessionActivityTableProps) {
                 <th className="pb-2 font-medium">Peers</th>
                 <th className="pb-2 font-medium">Protocol</th>
                 <th className="pb-2 font-medium">Packets</th>
-                <th className="pb-2 font-medium">Flags &amp; Findings</th>
+                <th className="pb-2 font-medium">Findings</th>
                 <th className="pb-2 font-medium text-right">Action</th>
               </tr>
             </thead>
@@ -68,31 +68,23 @@ export function SessionActivityTable({ sessions }: SessionActivityTableProps) {
                   </td>
                   <td className="py-2.5">
                     <div className="flex items-center gap-2">
-                      {sess.has_anomaly && (
-                        <span
-                          title={`AI Anomaly Score: ${sess.anomaly_score?.toFixed(1) ?? 'N/A'}`}
-                          className="inline-flex items-center gap-0.5 rounded bg-warning/10 px-1.5 py-0.5 text-2xs font-medium text-warning"
-                        >
-                          <AlertTriangle className="h-3 w-3" aria-hidden /> ML Anomaly
-                        </span>
-                      )}
-                      {sess.has_drift && (
-                        <span
-                          title={`Security Drift Status: ${sess.drift_status ?? 'DRIFT'}`}
-                          className="inline-flex items-center gap-0.5 rounded bg-secondary/10 px-1.5 py-0.5 text-2xs font-medium text-secondary"
-                        >
-                          <GitCompare className="h-3 w-3" aria-hidden /> Drift
-                        </span>
-                      )}
                       {sess.vulnerabilities_count > 0 && (
                         <span
-                          title={`${sess.vulnerabilities_count} vulnerability findings`}
+                          title={`${sess.vulnerabilities_count} security assessment findings`}
                           className="inline-flex items-center gap-0.5 rounded bg-error/10 px-1.5 py-0.5 text-2xs font-medium text-error"
                         >
                           <ShieldAlert className="h-3 w-3" aria-hidden /> {sess.vulnerabilities_count} Findings
                         </span>
                       )}
-                      {!sess.has_anomaly && !sess.has_drift && sess.vulnerabilities_count === 0 && (
+                      {sess.has_anomaly && (
+                        <span
+                          title={`Supplementary Anomaly Score: ${sess.anomaly_score?.toFixed(1) ?? 'N/A'}`}
+                          className="inline-flex items-center gap-0.5 rounded bg-warning/10 px-1.5 py-0.5 text-2xs font-medium text-warning"
+                        >
+                          <AlertTriangle className="h-3 w-3" aria-hidden /> Flagged
+                        </span>
+                      )}
+                      {!sess.has_anomaly && sess.vulnerabilities_count === 0 && (
                         <span className="text-2xs text-muted">&mdash;</span>
                       )}
                     </div>

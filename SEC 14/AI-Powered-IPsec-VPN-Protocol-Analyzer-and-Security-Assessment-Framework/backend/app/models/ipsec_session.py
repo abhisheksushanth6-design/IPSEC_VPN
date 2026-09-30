@@ -36,6 +36,8 @@ class IPsecSession(Base):
     ah_packets: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     ike_version: Mapped[str | None] = mapped_column(String(8), nullable=True)
     nat_traversal: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    ipsec_mode: Mapped[str] = mapped_column(String(16), nullable=False, default="TUNNEL")
+    ip_version: Mapped[int] = mapped_column(Integer, nullable=False, default=4)
     # JSON documents produced by the correlation engine (IKE/ESP/AH info, timeline, activity).
     detail_json: Mapped[str] = mapped_column(Text, nullable=False)
     discovered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utc_now, nullable=False)

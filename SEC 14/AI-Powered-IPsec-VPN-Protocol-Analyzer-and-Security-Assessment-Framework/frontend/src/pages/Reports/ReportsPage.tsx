@@ -57,6 +57,8 @@ export function ReportsPage() {
   const [isLoadingReports, setIsLoadingReports] = useState<boolean>(true);
   const [typeFilter, setTypeFilter] = useState<'ALL' | ReportType>('ALL');
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
 
   // Fetch reports list
   const loadReports = useCallback(async () => {
@@ -139,6 +141,19 @@ export function ReportsPage() {
     }
   };
 
+  // Handle Safe Programmatic Binary PDF Download
+  const handleDownload = async (id: string, filename?: string) => {
+    setDownloadingId(id);
+    setDownloadError(null);
+    try {
+      await reportService.downloadReportPdf(id, filename);
+    } catch (err: any) {
+      setDownloadError(err.message || 'Report download failed');
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
   // Filtered reports
   const filteredReports = reports.filter((r) => {
     if (typeFilter === 'ALL') return true;
@@ -174,12 +189,12 @@ export function ReportsPage() {
         <Shield className="h-5 w-5 text-indigo-400 shrink-0 mt-0.5" />
         <div className="space-y-1">
           <p className="font-medium text-primary">
-            Evidence-Based Audit Traceability (Layers 01–14)
+            Evidence-Based Audit Traceability (Layers 01–10)
           </p>
           <p>
-            Generated PDF reports compile empirical protocol state, cryptographic Security Associations,
-            behavioral baselines, deterministic drift detections, unsupervised ML anomalies, security rule
-            evaluations, and composite Layer 10 risk assessments with zero synthetic scores.
+            Generated reports compile empirical protocol analysis, Security Association parameters,
+            session fingerprints, AI traffic classification, metadata exposure vectors, security assessment findings,
+            and composite risk evaluations with complete audit traceability.
           </p>
         </div>
       </div>
@@ -214,7 +229,7 @@ export function ReportsPage() {
                 />
               </div>
               <p className="text-2xs leading-relaxed text-muted">
-                Comprehensive security audit covering all layers: Packets, Sessions, SAs, Features, Baselines, Drift, ML Anomalies, and Rule Findings.
+                Comprehensive security audit covering all layers: Packets, Sessions, SA &amp; Protocol State, Features, Session Fingerprints, AI Traffic Classification, Metadata Exposure, and Security Assessment Findings.
               </p>
             </label>
 
@@ -241,7 +256,7 @@ export function ReportsPage() {
                 />
               </div>
               <p className="text-2xs leading-relaxed text-muted">
-                Focused forensic report on a specific IPsec session, including its IKE/ESP parameters, active SAs, drift deviations, and specific findings.
+                Focused forensic report on a specific IPsec session, including its IKE/ESP parameters, active SAs, session fingerprint, AI traffic classification, metadata exposure, and security findings.
               </p>
             </label>
 
@@ -256,7 +271,7 @@ export function ReportsPage() {
               <div className="flex items-center justify-between mb-2">
                 <span className="font-semibold text-sm text-primary flex items-center gap-2">
                   <Shield className="h-4 w-4 text-amber-400" />
-                  Vulnerability &amp; Hardening
+                  Security Assessment &amp; Hardening
                 </span>
                 <input
                   type="radio"
@@ -360,12 +375,18 @@ export function ReportsPage() {
               </div>
               <a
                 href={reportService.getDownloadUrl(generationSuccess.id)}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1.5 rounded bg-green-600 px-3 py-1 text-2xs font-semibold text-white hover:bg-green-500 transition-colors"
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleDownload(generationSuccess.id, generationSuccess.filename);
+                }}
+                className="inline-flex items-center gap-1.5 rounded bg-green-600 px-3 py-1 text-2xs font-semibold text-white hover:bg-green-500 transition-colors cursor-pointer"
               >
-                <Download className="h-3 w-3" />
-                <span>Download PDF</span>
+                {downloadingId === generationSuccess.id ? (
+                  <RefreshCw className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Download className="h-3 w-3" />
+                )}
+                <span>{downloadingId === generationSuccess.id ? 'Downloading...' : 'Download PDF'}</span>
               </a>
             </div>
           )}
@@ -402,6 +423,22 @@ export function ReportsPage() {
           </div>
         }
       >
+        {downloadError && (
+          <div className="mb-4 rounded border border-red-500/30 bg-red-500/10 p-3 text-xs flex items-center justify-between text-red-300">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-red-400 shrink-0" />
+              <span>{downloadError}</span>
+            </div>
+            <button
+              onClick={() => setDownloadError(null)}
+              className="text-muted hover:text-primary text-xs ml-2 cursor-pointer font-bold px-1"
+              title="Dismiss error"
+            >
+              &times;
+            </button>
+          </div>
+        )}
+
         {isLoadingReports && reports.length === 0 ? (
           <div className="py-8 text-center text-xs text-muted flex flex-col items-center justify-center gap-2">
             <RefreshCw className="h-5 w-5 animate-spin text-muted" />
@@ -479,10 +516,18 @@ export function ReportsPage() {
                           <a
                             href={reportService.getDownloadUrl(report.id)}
                             download={report.filename}
-                            className="inline-flex items-center gap-1 rounded border border-border bg-surface px-2.5 py-1 text-2xs font-medium text-secondary hover:bg-subtle hover:text-primary transition-colors"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              handleDownload(report.id, report.filename);
+                            }}
+                            className="inline-flex items-center gap-1 rounded border border-border bg-surface px-2.5 py-1 text-2xs font-medium text-secondary hover:bg-subtle hover:text-primary transition-colors cursor-pointer"
                             title="Download PDF"
                           >
-                            <Download className="h-3 w-3 text-indigo-400" />
+                            {downloadingId === report.id ? (
+                              <RefreshCw className="h-3 w-3 text-indigo-400 animate-spin" />
+                            ) : (
+                              <Download className="h-3 w-3 text-indigo-400" />
+                            )}
                             <span>PDF</span>
                           </a>
                           <button

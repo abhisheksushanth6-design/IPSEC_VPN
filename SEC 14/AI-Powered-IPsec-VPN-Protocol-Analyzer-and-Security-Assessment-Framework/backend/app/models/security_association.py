@@ -39,6 +39,8 @@ class SecurityAssociationRow(Base):
     association: Mapped[str] = mapped_column(String(16), nullable=False)
     rekey_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     session_id: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    ipsec_mode: Mapped[str] = mapped_column(String(16), nullable=False, default="TUNNEL")
+    ip_version: Mapped[int] = mapped_column(Integer, nullable=False, default=4)
     detail_json: Mapped[str] = mapped_column(Text, nullable=False)
     discovered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utc_now, nullable=False)
 

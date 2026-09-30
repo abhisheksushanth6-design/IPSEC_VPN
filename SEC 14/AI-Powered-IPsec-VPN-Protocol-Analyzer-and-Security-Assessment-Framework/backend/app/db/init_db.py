@@ -23,9 +23,31 @@ logger = logging.getLogger(__name__)
 APPLICATION_MODE_KEY = "application_mode"
 
 
+def _migrate_sqlite_columns() -> None:
+    """Ensure newly added columns exist in existing SQLite tables."""
+    inspector = inspect(engine)
+    table_names = set(inspector.get_table_names())
+    if "ipsec_sessions" in table_names:
+        cols = {c["name"] for c in inspector.get_columns("ipsec_sessions")}
+        with engine.begin() as conn:
+            if "ipsec_mode" not in cols:
+                conn.execute(text("ALTER TABLE ipsec_sessions ADD COLUMN ipsec_mode VARCHAR(16) DEFAULT 'TUNNEL' NOT NULL"))
+            if "ip_version" not in cols:
+                conn.execute(text("ALTER TABLE ipsec_sessions ADD COLUMN ip_version INTEGER DEFAULT 4 NOT NULL"))
+
+    if "security_associations" in table_names:
+        cols = {c["name"] for c in inspector.get_columns("security_associations")}
+        with engine.begin() as conn:
+            if "ipsec_mode" not in cols:
+                conn.execute(text("ALTER TABLE security_associations ADD COLUMN ipsec_mode VARCHAR(16) DEFAULT 'TUNNEL' NOT NULL"))
+            if "ip_version" not in cols:
+                conn.execute(text("ALTER TABLE security_associations ADD COLUMN ip_version INTEGER DEFAULT 4 NOT NULL"))
+
+
 def create_schema() -> None:
     """Create any tables that do not yet exist."""
     Base.metadata.create_all(bind=engine)
+    _migrate_sqlite_columns()
 
 
 def seed_system_settings(session: Session) -> SystemSetting:
@@ -52,12 +74,38 @@ def seed_system_settings(session: Session) -> SystemSetting:
     return existing
 
 
+def seed_default_users(session: Session) -> None:
+    """Ensure a default security analyst demo user exists for technical presentations."""
+    from app.core.security import hash_password
+    from app.models.user import User
+
+    existing = session.scalar(select(User).limit(1))
+    if existing is None:
+        demo_user = User(
+            name="Security Analyst",
+            email="admin@ipsec-analyzer.local",
+            username="analyst",
+            password_hash=hash_password("Analyst@2026!"),
+            role="admin",
+            is_active=True,
+            is_verified=True,
+        )
+        session.add(demo_user)
+        session.commit()
+        logger.info(
+            "Seeded default demo user: username=%s email=%s",
+            demo_user.username,
+            demo_user.email,
+        )
+
+
 def initialize_database() -> None:
     """Create the schema and seed configuration. Safe to call repeatedly."""
     try:
         create_schema()
         with SessionLocal() as session:
             seed_system_settings(session)
+            seed_default_users(session)
             try:
                 from app.layers.layer08_ai_ml.cicids_bundle import ensure_cicids_model_registered
                 ensure_cicids_model_registered(session)

@@ -137,9 +137,10 @@ def test_unknown_packet_404(client) -> None:
 
 def test_architecture_reports_layer03_in_development(client) -> None:
     layers = client.get("/api/system/status").json()["architecture_layers"]
-    assert layers[2]["number"] == 3 and layers[2]["status"] in ("IN DEVELOPMENT", "OPERATIONAL")
-    assert layers[4]["status"] in ("IN DEVELOPMENT", "OPERATIONAL")  # Layer 05 (Section 8)
-    assert layers[5]["status"] in ("IN DEVELOPMENT", "OPERATIONAL")  # Layer 06 (Section 9)
+    assert layers[2]["number"] == 3 and layers[2]["status"] in ("IN DEVELOPMENT", "OPERATIONAL", "READY")
+    assert layers[3]["number"] == 4 and layers[3]["status"] in ("IN DEVELOPMENT", "OPERATIONAL", "READY")
+    assert layers[4]["status"] in ("IN DEVELOPMENT", "OPERATIONAL", "READY")  # Layer 05
+    assert layers[5]["status"] in ("IN DEVELOPMENT", "OPERATIONAL", "READY")  # Layer 06 (Section 9)
     assert layers[6]["status"] in ("IN DEVELOPMENT", "OPERATIONAL")  # Layer 07 (Section 10)
     assert layers[7]["status"] == "OPERATIONAL"  # Layer 08 (Section 11)
     assert layers[8]["status"] == "OPERATIONAL"  # Layer 09 (Section 12)

@@ -10,7 +10,7 @@ describe('routing', () => {
   });
 
   it('defines a route for every sidebar item', () => {
-    expect(NAVIGATION_ITEMS).toHaveLength(14);
+    expect(NAVIGATION_ITEMS).toHaveLength(18);
   });
 
   it.each(NAVIGATION_ITEMS.map((item) => [item.path, item.label]))(

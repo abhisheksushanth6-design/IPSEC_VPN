@@ -195,15 +195,15 @@ describe('Section 13 Web Dashboard widgets and live posture', () => {
     mockBackendOnline();
   });
 
-  it('renders the executive posture banner with strict Layer 10 uninitialized notice', async () => {
+  it('renders the executive posture banner with Layer 09 Risk Assessment status', async () => {
     renderAppAt('/overview');
     await screen.findAllByText('FOUNDATION ONLINE');
 
     const postureBanner = screen.getByRole('region', { name: /executive security posture/i });
     expect(postureBanner).toBeInTheDocument();
     expect(within(postureBanner).getByText(/framework security & analytical posture/i)).toBeInTheDocument();
-    expect(within(postureBanner).getByText(/layer 10 \(risk assessment & decision engine\)/i)).toBeInTheDocument();
-    expect(within(postureBanner).getByText(/not initialized/i)).toBeInTheDocument();
+    expect(within(postureBanner).getByText(/layer 09 \(risk assessment & decision engine\)/i)).toBeInTheDocument();
+    expect(within(postureBanner).getAllByText(/operational/i).length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders all four analytical layer summary cards', async () => {
@@ -212,7 +212,7 @@ describe('Section 13 Web Dashboard widgets and live posture', () => {
 
     expect(screen.getByRole('article', { name: 'Security Vulnerabilities' })).toBeInTheDocument();
     expect(screen.getByRole('article', { name: 'AI / ML Anomalies' })).toBeInTheDocument();
-    expect(screen.getByRole('article', { name: 'Security Drift' })).toBeInTheDocument();
+    expect(screen.getByRole('article', { name: 'AI Traffic Classification' })).toBeInTheDocument();
     expect(screen.getByRole('article', { name: 'SA Lifecycles' })).toBeInTheDocument();
   });
 

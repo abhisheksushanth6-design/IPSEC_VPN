@@ -18,25 +18,21 @@ export function renderAppAt(route: string): RenderResult {
 }
 
 /**
- * The locked 14-layer architecture exactly as the backend serves it. Tests
+ * The locked 10-layer architecture exactly as the backend serves it. Tests
  * compare rendered output against this list, so a rename or reorder in the
  * UI code fails loudly.
  */
 export const LOCKED_LAYERS = [
-  [1, 'IPsec VPN Test Environment', 'layer01_test_environment', 'NOT INITIALIZED'],
-  [2, 'Packet Capture & Data Collection', 'layer02_packet_capture', 'NOT INITIALIZED'],
-  [3, 'Packet & Protocol Analysis', 'layer03_protocol_analysis', 'IN DEVELOPMENT'],
-  [4, 'Security State & SA Lifecycle Engine', 'layer04_sa_lifecycle', 'IN DEVELOPMENT'],
-  [5, 'Feature Extraction & Engineering', 'layer05_feature_engineering', 'IN DEVELOPMENT'],
-  [6, 'Session Fingerprinting & Baseline Profiling', 'layer06_session_fingerprinting', 'NOT INITIALIZED'],
-  [7, 'Security Drift Detection', 'layer07_drift_detection', 'NOT INITIALIZED'],
-  [8, 'AI / ML Anomaly Detection Engine', 'layer08_ai_ml', 'NOT INITIALIZED'],
-  [9, 'Security Rule & Vulnerability Engine', 'layer09_vulnerability_engine', 'NOT INITIALIZED'],
-  [10, 'Risk Assessment & Decision Engine', 'layer10_risk_engine', 'NOT INITIALIZED'],
-  [11, 'Security Databases (SQLite)', 'layer11_database', 'FOUNDATION CREATED'],
-  [12, 'Backend & API (FastAPI)', 'layer12_api', 'FOUNDATION CREATED'],
-  [13, 'Web Dashboard', 'layer13_dashboard', 'FOUNDATION CREATED'],
-  [14, 'Report Generation (PDF)', 'layer14_reports', 'FOUNDATION READY'],
+  [1, 'IPsec VPN Test Environment', 'layer01_test_environment', 'READY'],
+  [2, 'Packet Capture & Data Collection', 'layer02_packet_capture', 'OPERATIONAL'],
+  [3, 'Packet & Protocol Analysis', 'layer03_protocol_analysis', 'OPERATIONAL'],
+  [4, 'Security Association & Protocol State Analysis', 'layer04_sa_lifecycle', 'OPERATIONAL'],
+  [5, 'Feature Extraction & Engineering', 'layer05_feature_engineering', 'OPERATIONAL'],
+  [6, 'IPsec Session Fingerprinting', 'layer06_session_fingerprinting', 'OPERATIONAL'],
+  [7, 'AI-Based Protocol & Traffic Classification', 'layer08_ai_ml', 'OPERATIONAL'],
+  [8, 'Security Assessment Engine', 'layer09_vulnerability_engine', 'OPERATIONAL'],
+  [9, 'Risk Assessment & Decision Engine', 'layer10_risk_engine', 'OPERATIONAL'],
+  [10, 'Dashboard & Report Generation', 'layer14_reports', 'OPERATIONAL'],
 ] as const;
 
 export const ARCHITECTURE_LAYERS_FIXTURE = LOCKED_LAYERS.map(([number, name, pkg, status]) => ({
@@ -55,8 +51,8 @@ export const SYSTEM_STATUS_FIXTURE = {
   database_status: 'CONNECTED',
   application_mode: 'DEMO',
   architecture_layers: ARCHITECTURE_LAYERS_FIXTURE,
-  total_layers: 14,
-  initialized_layers: 7,
+  total_layers: 10,
+  initialized_layers: 10,
 };
 
 export const HEALTH_FIXTURE = {
@@ -102,8 +98,8 @@ export const DASHBOARD_SUMMARY_FIXTURE = {
     backend_status: 'OPERATIONAL',
     database_status: 'CONNECTED',
     application_mode: 'DEMO',
-    layers_total: 14,
-    layers_initialized: 11,
+    layers_total: 10,
+    layers_initialized: 10,
     last_refresh: '2026-09-04T10:00:00Z',
   },
   metrics: {
@@ -147,7 +143,18 @@ export function mockBackendOnline(statusOverride?: Partial<typeof SYSTEM_STATUS_
     vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
       let body: unknown = statusBody;
-      if (url.includes('/api/health')) body = HEALTH_FIXTURE;
+      if (url.includes('/api/auth/me')) {
+        body = {
+          id: 'test-user-id',
+          name: 'Security Analyst',
+          email: 'admin@ipsec-analyzer.local',
+          username: 'analyst',
+          role: 'admin',
+          is_active: true,
+          created_at: '2026-09-01T00:00:00Z',
+          last_login: '2026-09-01T00:00:00Z',
+        };
+      } else if (url.includes('/api/health')) body = HEALTH_FIXTURE;
       else if (url.includes('/api/features/status')) body = FEATURE_STATUS_FIXTURE;
       else if (url.includes('/api/features/entities')) body = FEATURE_ENTITIES_FIXTURE;
       else if (url.includes('/api/features/entity/')) {
@@ -221,8 +228,75 @@ export function mockBackendOnline(statusOverride?: Partial<typeof SYSTEM_STATUS_
         body = [];
       } else if (url.includes('/api/reports')) {
         body = [];
+      } else if (url.includes('/api/sessions/fingerprints')) {
+        body = { capture_id: 'default', total_sessions: 0, sessions: [], metadata: {} };
       } else if (url.includes('/api/sessions')) {
         body = { items: [], total: 0, page: 1, page_size: 50 };
+      } else if (url.includes('/api/packets/protocol-analysis')) {
+        body = {
+          capture_id: 'default',
+          total_packets_analyzed: 0,
+          ike_summary: { total_ike_packets: 0, versions_detected: [], proposals: [], anomalies: [] },
+          ipsec_streams: [],
+          anomalies: [],
+          endpoint_summary: [],
+          generated_at: '2026-09-11T00:00:00Z',
+        };
+      } else if (url.includes('/api/packets/anomalies')) {
+        body = [];
+      } else if (url.includes('/api/security-assessment')) {
+        body = {
+          assessment_id: 'assess-1',
+          capture_id: 'default',
+          overall_risk_score: 0,
+          risk_level: 'LOW',
+          findings_by_severity: {},
+          findings_by_category: {},
+          findings: [],
+          evaluated_sessions_count: 0,
+          evaluated_tunnels_count: 0,
+          evaluated_packets_count: 0,
+          timestamp: '2026-09-11T00:00:00Z',
+        };
+      } else if (url.includes('/api/ai-analysis')) {
+        body = {
+          analysis_id: 'ai-1',
+          capture_id: 'default',
+          timestamp: '2026-09-11T00:00:00Z',
+          provider_used: 'mock',
+          overall_risk_score: 0,
+          risk_level: 'LOW',
+          executive_summary: {
+            overall_posture: 'LOW_RISK',
+            risk_score_summary: 'Clean baseline',
+            business_impact: 'None',
+            compliance_overview: 'Compliant',
+            strategic_recommendations: [],
+          },
+          technical_summary: {
+            protocol_health: 'Healthy',
+            cryptographic_assessment: 'Strong',
+            integrity_and_sequence_analysis: 'Valid',
+            leakage_and_exposure_analysis: 'None',
+            rfc_compliance_citations: [],
+          },
+          prioritized_findings: [],
+          attack_implications: [],
+          remediation_steps: [],
+          metadata: {},
+        };
+      } else if (url.includes('/api/metadata-exposure/summary')) {
+        body = { total_assessments: 0, total_sessions: 0, critical_count: 0, high_count: 0, medium_count: 0, low_count: 0, average_exposure_score: 0 };
+      } else if (url.includes('/api/metadata-exposure')) {
+        body = [];
+      } else if (url.includes('/api/threat-matrix/summary')) {
+        body = { total_threats: 0, critical_count: 0, high_count: 0, medium_count: 0, low_count: 0, active_vectors_count: 0 };
+      } else if (url.includes('/api/threat-matrix')) {
+        body = [];
+      } else if (url.includes('/api/risk/summary')) {
+        body = { state: 'OPERATIONAL', overall_risk_score: 0, overall_risk_level: 'LOW', decision: 'ALLOW', assessed_sessions_count: 0, total_sessions_count: 0 };
+      } else if (url.includes('/api/risk/assessments')) {
+        body = [];
       }
       return new Response(JSON.stringify(body), {
         status: 200,
@@ -236,7 +310,17 @@ export function mockBackendOnline(statusOverride?: Partial<typeof SYSTEM_STATUS_
 export function mockBackendOffline(): void {
   vi.stubGlobal(
     'fetch',
-    vi.fn(async () => {
+    vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('/api/auth/me')) {
+        return new Response(
+          JSON.stringify({ id: '1', email: 'admin@ipsec-analyzer.local', name: 'Analyst', role: 'ADMIN' }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          },
+        );
+      }
       throw new TypeError('Failed to fetch');
     }),
   );

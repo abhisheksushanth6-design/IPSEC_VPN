@@ -38,6 +38,9 @@ from .registry import (
     definitions_for,
     has_definition,
 )
+from .assessment_models import RiskAssessmentReport, SecurityFinding
+from .assessment_rules import run_security_assessment
+from .assessment_service import SecurityAssessmentService, get_security_assessment_service
 
 LAYER_NUMBER = 5
 LAYER_NAME = "Feature Extraction & Engineering"
@@ -70,4 +73,9 @@ __all__ = [
     "definition",
     "definitions_for",
     "has_definition",
+    "SecurityFinding",
+    "RiskAssessmentReport",
+    "run_security_assessment",
+    "SecurityAssessmentService",
+    "get_security_assessment_service",
 ]

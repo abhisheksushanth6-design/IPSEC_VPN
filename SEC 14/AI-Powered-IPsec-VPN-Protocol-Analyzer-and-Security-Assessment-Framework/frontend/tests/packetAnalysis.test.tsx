@@ -30,8 +30,21 @@ function mockPacketBackend(opts: { loaded: boolean; failUpload?: { status: numbe
     if (url.endsWith('/api/packets') && method === 'DELETE') { loaded = false; return json(fixture.empty_status); }
     const detailMatch = url.match(/\/api\/packets\/([0-9a-f]{32})$/);
     if (detailMatch) return details[detailMatch[1]!] ? json(details[detailMatch[1]!]) : json({ error: 'PACKET_NOT_FOUND', message: 'No packet with that identifier is loaded.' }, 404);
+    if (url.includes('/api/packets/protocol-analysis')) {
+      return json({
+        capture_id: loaded ? 'fixture.pcap' : 'empty',
+        total_packets_analyzed: loaded ? 7 : 0,
+        ike_summary: { total_ike_packets: loaded ? 2 : 0, versions_detected: ['IKEv2'], proposals: [], anomalies: [] },
+        ipsec_streams: [],
+        anomalies: [],
+        endpoint_summary: [],
+        generated_at: '2026-09-11T00:00:00Z',
+      });
+    }
+    if (url.includes('/api/packets/anomalies')) return json([]);
+    if (url.includes('/api/packets/streams')) return json([]);
     if (url.includes('/api/packets?')) {
-      const params = new URL(url).searchParams;
+      const params = new URL(url, 'http://localhost').searchParams;
       let items = (fixture.page as Fixture['page']).items;
       const protocol = params.get('protocol'); const ipsec = params.get('ipsec'); const search = params.get('search');
       if (protocol) items = items.filter((i) => i.protocol === protocol.toUpperCase());

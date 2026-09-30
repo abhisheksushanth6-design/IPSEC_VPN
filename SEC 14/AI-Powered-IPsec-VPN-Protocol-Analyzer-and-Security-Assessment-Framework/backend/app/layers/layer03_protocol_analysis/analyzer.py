@@ -32,7 +32,7 @@ from app.layers.layer03_protocol_analysis.transport_layer import decode_icmp, de
 RAW_BYTES_RETAINED = 2048
 
 
-def analyze_capture(data: bytes, max_packets: int) -> tuple[CaptureMetadata, list[PacketAnalysisResult]]:
+def analyze_capture(data: bytes, max_packets: int = 10000) -> tuple[CaptureMetadata, list[PacketAnalysisResult]]:
     capture = read_capture(data, max_packets)
     results = [
         analyze_frame(capture.link_type, record, number)
@@ -129,12 +129,38 @@ def _decode(link_type: int, frame: bytes, result: PacketAnalysisResult) -> None:
         result.flags.encrypted = True
         result.info = f"ESP SPI={esp.spi} seq={esp.sequence_number} payload={esp.payload_length} bytes (encrypted)"
     elif proto == 51:
-        ah, _ = decode_ah(payload)
+        ah, ah_payload = decode_ah(payload)
         result.protocol = "AH"
         result.layers.append("AH")
-        result.ipsec = IPsecAnalysis(type="AH", nat_traversal=False, ah=ah)
+        is_transport = ah.next_header in (1, 6, 17, 58)
+        encap_mode = "TRANSPORT" if is_transport else ("TUNNEL" if ah.next_header in (4, 41) else "TUNNEL")
+        result.ipsec = IPsecAnalysis(type="AH", nat_traversal=False, ah=ah, encapsulation_mode=encap_mode)
         result.flags.authenticated = True
-        result.info = f"AH SPI={ah.spi} seq={ah.sequence_number} next={ah.next_header_name} ICV={ah.icv_length} bytes"
+        if is_transport and ah_payload:
+            if ah.next_header == 6 and len(ah_payload) >= 20:
+                try:
+                    tcp, _ = decode_tcp(ah_payload)
+                    result.transport = tcp
+                    result.layers.append("TCP")
+                except Exception:
+                    pass
+            elif ah.next_header == 17 and len(ah_payload) >= 8:
+                try:
+                    udp, _ = decode_udp(ah_payload)
+                    result.transport = udp
+                    result.layers.append("UDP")
+                except Exception:
+                    pass
+            elif ah.next_header in (1, 58) and len(ah_payload) >= 8:
+                try:
+                    icmp, _ = decode_icmp(ah_payload, ipv6=(ah.next_header == 58))
+                    result.transport = icmp
+                    result.layers.append("ICMPv6" if ah.next_header == 58 else "ICMP")
+                except Exception:
+                    pass
+
+        mode_str = " [TRANSPORT]" if encap_mode == "TRANSPORT" else ""
+        result.info = f"AH SPI={ah.spi} seq={ah.sequence_number} next={ah.next_header_name}{mode_str} ICV={ah.icv_length} bytes"
     else:
         result.info = f"IPv{ip.version} {ip.protocol_name}"
 
@@ -169,8 +195,14 @@ def _decode_udp_ipsec(udp: UDPLayer, payload: bytes, result: PacketAnalysisResul
         raise TruncatedError("IKE", 28, len(ike_bytes)) if isinstance(exc, TruncatedError) else exc
     result.protocol = "IKE"
     result.layers.append("IKE")
+    is_transport = any(
+        (p.type_number in (11, 41) and (p.notify_type == 16391 or "USE_TRANSPORT_MODE" in p.name))
+        for p in ike.payloads
+    )
+    encap_mode = "TRANSPORT" if is_transport else "TUNNEL"
     result.ipsec = IPsecAnalysis(
         type="IKE", nat_traversal=(kind == "IKE_NAT_T"), udp_port=port, ike=ike,
+        encapsulation_mode=encap_mode,
         nat_traversal_note="IKE carried after a 4-byte non-ESP marker on UDP/4500 (RFC 3948 §2.2)."
         if kind == "IKE_NAT_T" else None,
     )

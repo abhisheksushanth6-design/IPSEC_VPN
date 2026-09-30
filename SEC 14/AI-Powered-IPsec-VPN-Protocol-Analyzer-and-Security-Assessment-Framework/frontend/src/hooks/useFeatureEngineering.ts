@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useReducer, useRef } from 'react';
 
-import { NetworkError, PacketServiceError, featureService } from '@/services';
+import { ApiError, NetworkError, PacketServiceError, featureService } from '@/services';
 import type {
   FeatureEngineStatus,
   FeatureEntityList,
@@ -71,6 +71,7 @@ function reducer(state: State, action: Action): State {
 
 function toError(error: unknown): PacketError {
   if (error instanceof PacketServiceError) return { code: error.code, message: error.message };
+  if (error instanceof ApiError) return { code: error.code || 'REQUEST_FAILED', message: error.message };
   if (error instanceof NetworkError) {
     return {
       code: 'FEATURE_SERVICE_UNAVAILABLE',
@@ -109,17 +110,19 @@ export function useFeatureEngineering(
     }
   }, []);
 
-  const loadEntities = useCallback(async (entityType: FeatureEntityType) => {
+  const loadEntities = useCallback(async (entityType: FeatureEntityType, clearExisting = true) => {
     entitiesAbort.current?.abort();
     const controller = new AbortController();
     entitiesAbort.current = controller;
-    dispatch({ type: 'entities', entities: null, loading: true });
+    if (clearExisting) {
+      dispatch({ type: 'entities', entities: null, loading: true });
+    }
     try {
       const entities = await featureService.fetchEntities(entityType, controller.signal);
       if (!controller.signal.aborted) dispatch({ type: 'entities', entities });
     } catch (error) {
       if (controller.signal.aborted) return;
-      dispatch({ type: 'entities', entities: null });
+      if (clearExisting) dispatch({ type: 'entities', entities: null });
       dispatch({ type: 'error', error: toError(error) });
     }
   }, []);
@@ -147,7 +150,11 @@ export function useFeatureEngineering(
         if (!active) return;
         dispatch({ type: 'vector', vector: null });
         // A missing vector is the normal state before extraction, not an error.
-        if (error instanceof PacketServiceError && error.status === 404) return;
+        const isNotFound =
+          (error instanceof PacketServiceError && (error.status === 404 || error.code === 'FEATURE_VECTOR_NOT_FOUND')) ||
+          (error instanceof ApiError && (error.status === 404 || error.code === 'FEATURE_VECTOR_NOT_FOUND' || error.message === 'FEATURE_VECTOR_NOT_FOUND')) ||
+          (error instanceof Error && error.message === 'FEATURE_VECTOR_NOT_FOUND');
+        if (isNotFound) return;
         dispatch({ type: 'error', error: toError(error) });
       });
     return () => {
@@ -163,7 +170,7 @@ export function useFeatureEngineering(
       const response = await featureService.extract(state.entityType, state.selectedId);
       dispatch({ type: 'vector', vector: response.feature_vector });
       dispatch({ type: 'status', status: await featureService.fetchStatus() });
-      void loadEntities(state.entityType);
+      void loadEntities(state.entityType, false);
     } catch (error) {
       dispatch({ type: 'error', error: toError(error) });
     } finally {
@@ -177,7 +184,7 @@ export function useFeatureEngineering(
     try {
       dispatch({ type: 'status', status: await featureService.clear() });
       dispatch({ type: 'vector', vector: null });
-      void loadEntities(state.entityType);
+      void loadEntities(state.entityType, false);
     } catch (error) {
       dispatch({ type: 'error', error: toError(error) });
     } finally {

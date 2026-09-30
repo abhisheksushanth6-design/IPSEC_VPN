@@ -24,22 +24,36 @@ from app.api.routes import (
     live_capture,
     reports,
     risk,
+    traffic_analysis,
+    metadata_exposure,
+    threat_matrix,
+    security_assessment,
+    ai_security_analysis,
+    auth,
 )
 
 api_router = APIRouter()
+api_router.include_router(auth.router)
 api_router.include_router(health.router)
 api_router.include_router(system.router)
 api_router.include_router(environment.router)
 api_router.include_router(live_capture.router)
+api_router.include_router(live_capture.capture_router)
 api_router.include_router(packets.router)
 api_router.include_router(sessions.router)
 api_router.include_router(security_associations.router)
+api_router.include_router(security_assessment.router)
+api_router.include_router(ai_security_analysis.router)
 api_router.include_router(features.router)
 api_router.include_router(baselines.router)
 api_router.include_router(fingerprints.router)
 api_router.include_router(drift.router)
 api_router.include_router(ml.router)
+api_router.include_router(traffic_analysis.router)
+api_router.include_router(metadata_exposure.router)
+api_router.include_router(threat_matrix.router)
 api_router.include_router(vulnerabilities.router)
 api_router.include_router(risk.router)
 api_router.include_router(dashboard.router)
 api_router.include_router(reports.router)
+

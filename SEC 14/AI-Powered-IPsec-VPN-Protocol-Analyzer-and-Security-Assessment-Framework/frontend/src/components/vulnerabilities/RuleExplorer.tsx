@@ -67,7 +67,7 @@ export function RuleExplorer({
             <option value="IKE">IKE Protocol</option>
             <option value="AUTH">Authentication</option>
             <option value="PROTOCOL">Protocol Integrity</option>
-            <option value="SA_LIFECYCLE">SA Lifecycle</option>
+            <option value="SA_LIFECYCLE">SA &amp; Protocol State</option>
             <option value="CONFIGURATION">Configuration</option>
           </select>
 

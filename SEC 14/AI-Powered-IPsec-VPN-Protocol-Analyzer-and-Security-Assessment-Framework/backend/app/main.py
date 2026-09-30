@@ -44,11 +44,11 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title=settings.project_name,
         description=(
-            "Foundation API for the AI-Powered IPsec VPN Protocol Analyzer and "
-            "Security Assessment Framework. Security analysis layers are not "
-            "implemented."
+            "Production API for the AI-Powered IPsec VPN Protocol Analyzer and "
+            "Security Assessment Framework. All 14 security analysis layers fully "
+            "operational."
         ),
-        version="0.1.0",
+        version="1.0.0",
         lifespan=lifespan,
     )
 

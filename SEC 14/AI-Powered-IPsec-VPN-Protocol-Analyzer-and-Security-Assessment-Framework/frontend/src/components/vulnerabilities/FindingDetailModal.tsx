@@ -7,7 +7,7 @@ import type { VulnerabilityFinding, FindingStatus } from '@/types';
 interface FindingDetailModalProps {
   finding: VulnerabilityFinding | null;
   onClose: () => void;
-  onUpdateStatus: (findingId: number, status: FindingStatus, note?: string) => Promise<void>;
+  onUpdateStatus: (findingId: string | number, status: FindingStatus, note?: string) => Promise<void>;
 }
 
 export function FindingDetailModal({

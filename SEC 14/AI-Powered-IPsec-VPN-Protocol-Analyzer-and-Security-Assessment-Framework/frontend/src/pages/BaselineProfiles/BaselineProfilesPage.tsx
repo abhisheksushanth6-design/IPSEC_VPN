@@ -34,7 +34,7 @@ export function BaselineProfilesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Navigation tab & query states
-  const initialTab = (searchParams.get('tab') as BaselineTabKey) || 'baselines';
+  const initialTab = (searchParams.get('tab') as BaselineTabKey) || 'fingerprints';
   const initialSessionId = searchParams.get('session_id');
   const initialBaselineId = searchParams.get('baseline_id');
 
@@ -95,7 +95,7 @@ export function BaselineProfilesPage() {
         .then((page) => setAvailableSessionCount(page.total))
         .catch(() => setAvailableSessionCount(0));
     } catch (err: any) {
-      setErrorMessage(err.message ?? 'Error fetching baseline profiling data');
+      setErrorMessage(err.message ?? 'Error fetching session fingerprinting data');
     } finally {
       setLoading(false);
     }

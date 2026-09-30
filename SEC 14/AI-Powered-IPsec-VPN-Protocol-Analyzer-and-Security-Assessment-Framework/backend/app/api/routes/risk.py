@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.db.base import get_db
 from app.layers.layer10_risk_engine import (
     RiskAssessmentResponse,
+    RiskExportResponse,
     RiskSummaryResponse,
     get_risk_engine_service,
 )
@@ -28,6 +29,7 @@ def get_risk_status(db: Session = Depends(get_db)) -> Dict[str, Any]:
     """Return live operational status and capability metrics for Layer 10."""
     svc = get_risk_engine_service()
     summary = svc.get_summary(db)
+    detailed = svc.get_detailed_status(db)
     return {
         "layer_number": 10,
         "layer_name": "Risk Assessment & Decision Engine",
@@ -37,6 +39,8 @@ def get_risk_status(db: Session = Depends(get_db)) -> Dict[str, Any]:
         "high_risk_count": summary.high_risk_count,
         "medium_risk_count": summary.medium_risk_count,
         "low_risk_count": summary.low_risk_count,
+        "checks": detailed.get("checks", {}),
+        "is_advisory": True,
     }
 
 
@@ -52,6 +56,21 @@ def get_risk_summary(db: Session = Depends(get_db)) -> RiskSummaryResponse:
 
 
 @router.get(
+    "/export",
+    response_model=RiskExportResponse,
+    summary="Export risk assessments for SIEM/SOAR/compliance reporting",
+)
+def export_risk_assessments(
+    session_id: Optional[str] = Query(None, description="Filter export by specific session ID"),
+    limit: int = Query(200, ge=1, le=1000, description="Maximum assessments to export"),
+    db: Session = Depends(get_db),
+) -> RiskExportResponse:
+    """Export risk assessments and evidence in structured JSON format for compliance audit."""
+    svc = get_risk_engine_service()
+    return svc.export_assessments(db, session_id=session_id, limit=limit)
+
+
+@router.get(
     "/assessments",
     response_model=List[RiskAssessmentResponse],
     summary="List all session risk assessments",
@@ -63,6 +82,26 @@ def list_assessments(
     """Retrieve recent session risk assessments ordered by recency."""
     svc = get_risk_engine_service()
     return svc.get_all_assessments(db, limit=limit)
+
+
+@router.get(
+    "/assessments/{assessment_id}",
+    response_model=RiskAssessmentResponse,
+    summary="Get risk assessment by its unique assessment ID",
+)
+def get_assessment_by_id(
+    assessment_id: str,
+    db: Session = Depends(get_db),
+) -> RiskAssessmentResponse:
+    """Retrieve a specific persistent risk assessment record by assessment ID."""
+    svc = get_risk_engine_service()
+    assessment = svc.get_assessment_by_id(db, assessment_id)
+    if assessment is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Risk assessment '{assessment_id}' not found.",
+        )
+    return assessment
 
 
 @router.get(

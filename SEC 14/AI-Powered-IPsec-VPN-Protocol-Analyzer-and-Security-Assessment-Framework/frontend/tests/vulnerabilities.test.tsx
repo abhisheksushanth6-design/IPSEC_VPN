@@ -224,4 +224,12 @@ describe('Security Rule & Vulnerability Engine (Layer 09)', () => {
       expect(screen.getByText(/Zero active security violations across monitored sessions/i)).toBeInTheDocument();
     });
   });
+
+  it('renders the Export button and enables audit trail exports', async () => {
+    renderAppAt('/vulnerabilities');
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Export/i })).toBeInTheDocument();
+    });
+  });
 });

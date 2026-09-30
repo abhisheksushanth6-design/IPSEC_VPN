@@ -6,13 +6,14 @@ interface CategoryDistributionChartProps {
   total: number;
 }
 
-const ALL_CATEGORIES: RuleCategory[] = [
-  'CRYPTO',
-  'IKE',
-  'AUTH',
-  'PROTOCOL',
-  'SA_LIFECYCLE',
-  'CONFIGURATION',
+const CATEGORY_DEFINITIONS: { key: RuleCategory; label: string; aliases: string[] }[] = [
+  { key: 'CRYPTO', label: 'Cryptography', aliases: ['CRYPTO', 'CRYPTOGRAPHIC'] },
+  { key: 'IKE', label: 'IKE Negotiation', aliases: ['IKE'] },
+  { key: 'AUTH', label: 'Authentication', aliases: ['AUTH', 'AUTHENTICATION'] },
+  { key: 'PROTOCOL', label: 'Protocol Integrity', aliases: ['PROTOCOL', 'IPSEC_PROTOCOL', 'PROTOCOL_ANOMALY'] },
+  { key: 'SA_LIFECYCLE', label: 'SA & Protocol State', aliases: ['SA_LIFECYCLE'] },
+  { key: 'CONFIGURATION', label: 'Configuration', aliases: ['CONFIGURATION'] },
+  { key: 'TRAFFIC_ANALYSIS', label: 'Traffic Analysis', aliases: ['TRAFFIC_ANALYSIS', 'BEHAVIORAL'] },
 ];
 
 export function CategoryDistributionChart({
@@ -23,18 +24,18 @@ export function CategoryDistributionChart({
     <div className="space-y-3">
       <div className="flex items-center justify-between text-xs text-text-secondary">
         <span className="font-medium">Findings by Security Category</span>
-        <span className="font-mono text-text-primary">6 Categories</span>
+        <span className="font-mono text-text-primary">{CATEGORY_DEFINITIONS.length} Categories</span>
       </div>
 
       <div className="space-y-2.5">
-        {ALL_CATEGORIES.map((category) => {
-          const count = distribution[category] || 0;
+        {CATEGORY_DEFINITIONS.map(({ key, aliases }) => {
+          const count = aliases.reduce((sum, alias) => sum + (distribution[alias] || 0), 0);
           const pct = total > 0 ? Math.round((count / total) * 100) : 0;
 
           return (
-            <div key={category} className="space-y-1">
+            <div key={key} className="space-y-1">
               <div className="flex items-center justify-between text-xs">
-                <CategoryBadge category={category} className="py-0 px-1.5 text-[10px]" />
+                <CategoryBadge category={key} className="py-0 px-1.5 text-[10px]" />
                 <div className="flex items-center gap-2 font-mono">
                   <span className="text-text-primary font-medium">{count}</span>
                   <span className="text-text-muted text-[11px]">({pct}%)</span>

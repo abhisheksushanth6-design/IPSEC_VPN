@@ -9,6 +9,7 @@ import {
   PacketStatistics,
   PacketTable,
   ProtocolSummary,
+  ProtocolAnalysisReportPanel,
   analyzerBadge,
 } from '@/components/packet-analysis';
 import { PageHeader } from '@/components/ui';
@@ -67,6 +68,8 @@ export function PacketAnalysisPage() {
         <PacketTable controller={controller} />
         <PacketDetails controller={controller} />
       </div>
+
+      <ProtocolAnalysisReportPanel />
 
       <div className="grid gap-6 lg:grid-cols-2">
         <ProtocolSummary status={controller.status} />

@@ -30,6 +30,10 @@ from app.layers.layer02_packet_capture.capture_engine import (
     VBoxCaptureEngine,
     count_pcap_packets,
 )
+from app.layers.layer02_packet_capture.scapy_reader import (
+    ScapyPcapReader,
+    parse_pcap_with_scapy,
+)
 from app.layers.layer02_packet_capture.service import LiveCaptureService
 from app.schemas.live_capture import LiveCaptureStatusResponse
 
@@ -229,3 +233,134 @@ def test_real_virtualbox_capture_status() -> None:
     recommended = [i for i in interfaces_res.interfaces if i.is_recommended]
     assert len(recommended) >= 1
     assert recommended[0].nic_type == "hostonly"
+
+
+def build_scapy_test_pcap_bytes() -> bytes:
+    """Construct a synthetic PCAP with Scapy containing IKE, ESP, AH, TCP, and ICMP."""
+    import tempfile
+    import warnings
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore")
+        from scapy.all import conf, Ether, IP, IPv6, UDP, TCP, ICMP, Raw, wrpcap
+    conf.verb = 0
+
+    mac_s = "00:11:22:33:44:55"
+    mac_d = "66:77:88:99:aa:bb"
+
+    pkts = [
+        # 1. IPv4 ESP (proto 50)
+        Ether(src=mac_s, dst=mac_d) / IP(src="192.168.1.10", dst="192.168.1.20", proto=50) / Raw(b"\x00\x00\x10\x00" + b"\xaa" * 24),
+        # 2. IPv4 AH (proto 51)
+        Ether(src=mac_s, dst=mac_d) / IP(src="192.168.1.10", dst="192.168.1.20", proto=51) / Raw(b"\xbb" * 24),
+        # 3. IKE (UDP 500)
+        Ether(src=mac_s, dst=mac_d) / IP(src="192.168.1.10", dst="192.168.1.20") / UDP(sport=500, dport=500) / Raw(b"\x01" * 28),
+        # 4. NAT-T IKE (UDP 4500 with zero marker)
+        Ether(src=mac_s, dst=mac_d) / IP(src="192.168.1.10", dst="192.168.1.20") / UDP(sport=4500, dport=4500) / Raw(b"\x00\x00\x00\x00" + b"\x02" * 28),
+        # 5. NAT-T ESP (UDP 4500 with non-zero SPI)
+        Ether(src=mac_s, dst=mac_d) / IP(src="192.168.1.10", dst="192.168.1.20") / UDP(sport=4500, dport=4500) / Raw(b"\x12\x34\x56\x78" + b"\xcc" * 28),
+        # 6. IPv6 ESP (nh 50)
+        Ether(src=mac_s, dst=mac_d) / IPv6(src="2001:db8::1", dst="2001:db8::2", nh=50) / Raw(b"\xdd" * 24),
+        # 7. TCP
+        Ether(src=mac_s, dst=mac_d) / IP(src="192.168.1.10", dst="192.168.1.20") / TCP(sport=12345, dport=80) / Raw(b"GET / HTTP/1.1\r\n\r\n"),
+        # 8. ICMP
+        Ether(src=mac_s, dst=mac_d) / IP(src="192.168.1.10", dst="192.168.1.20") / ICMP() / Raw(b"ping"),
+    ]
+
+    with tempfile.NamedTemporaryFile(suffix=".pcap", delete=False) as tf:
+        tmp_name = tf.name
+    try:
+        wrpcap(tmp_name, pkts)
+        with open(tmp_name, "rb") as f:
+            return f.read()
+    finally:
+        if os.path.exists(tmp_name):
+            os.unlink(tmp_name)
+
+
+# 10. Scapy PCAP parsing and protocol detection (IKE, ESP, AH)
+def test_scapy_pcap_reader_parsing() -> None:
+    pcap_bytes = build_scapy_test_pcap_bytes()
+    summary = parse_pcap_with_scapy(pcap_bytes, filename="synthetic_ipsec.pcap")
+
+    assert summary.total_packets == 8
+    assert summary.ike_packets == 2
+    assert summary.esp_packets == 3
+    assert summary.ah_packets == 1
+    assert summary.other_packets == 2
+
+    assert summary.protocol_counts["IKE"] == 2
+    assert summary.protocol_counts["ESP"] == 3
+    assert summary.protocol_counts["AH"] == 1
+    assert summary.protocol_counts["TCP"] == 1
+    assert summary.protocol_counts["ICMP"] == 1
+
+    assert "192.168.1.10" in summary.source_ips
+    assert "2001:db8::1" in summary.source_ips
+    assert "192.168.1.20" in summary.destination_ips
+    assert "2001:db8::2" in summary.destination_ips
+    assert len(summary.all_ips) >= 4
+    assert len(summary.conversations) >= 2
+    assert len(summary.packets) == 8
+
+
+# 11. API endpoint POST /api/live-capture/upload
+def test_api_live_capture_upload(client) -> None:
+    pcap_bytes = build_scapy_test_pcap_bytes()
+    resp = client.post(
+        "/api/live-capture/upload",
+        files={"file": ("test_capture.pcap", pcap_bytes, "application/octet-stream")},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+
+    assert data["status"] == "success"
+    assert data["filename"] == "test_capture.pcap"
+    assert data["total_packets"] == 8
+    assert data["ike_packets"] == 2
+    assert data["esp_packets"] == 3
+    assert data["ah_packets"] == 1
+    assert "192.168.1.10" in data["source_ips"]
+    assert "2001:db8::1" in data["source_ips"]
+    assert len(data["conversations"]) >= 1
+    assert len(data["packets"]) == 8
+
+
+# 12. API endpoint alias POST /api/capture/upload
+def test_api_capture_upload_alias(client) -> None:
+    pcap_bytes = build_scapy_test_pcap_bytes()
+    resp = client.post(
+        "/api/capture/upload",
+        files={"file": ("alias_capture.pcap", pcap_bytes, "application/octet-stream")},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "success"
+    assert data["filename"] == "alias_capture.pcap"
+    assert data["total_packets"] == 8
+    assert data["esp_packets"] == 3
+
+
+# 13. API rejection of unsupported file types
+def test_api_upload_unsupported_extension(client) -> None:
+    resp = client.post(
+        "/api/live-capture/upload",
+        files={"file": ("malicious.exe", b"not-a-pcap", "application/octet-stream")},
+    )
+    assert resp.status_code == 415
+    data = resp.json()
+    assert "error" in data or "detail" in data
+    assert "Unsupported file extension" in str(data)
+
+
+# 14. API rejection of truncated file
+def test_api_upload_truncated_file(client) -> None:
+    resp = client.post(
+        "/api/live-capture/upload",
+        files={"file": ("short.pcap", b"short", "application/octet-stream")},
+    )
+    assert resp.status_code == 400
+    data = resp.json()
+    assert "error" in data or "detail" in data
+    assert "too small" in str(data)
+
+

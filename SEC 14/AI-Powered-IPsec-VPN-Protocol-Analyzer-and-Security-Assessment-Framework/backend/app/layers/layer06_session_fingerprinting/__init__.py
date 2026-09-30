@@ -43,6 +43,23 @@ from .validators import (
     check_minimum_observations,
     validate_feature_version_compatibility,
 )
+from .ai_analysis_models import (
+    AISecurityAnalysis,
+    AttackImplication,
+    ExecutiveSummary,
+    PrioritizedFinding,
+    RemediationStep,
+    TechnicalSummary,
+)
+from .ai_analysis_providers import (
+    BaseAIAnalysisProvider,
+    ConfigurableRealLLMProvider,
+    DeterministicAIProvider,
+)
+from .ai_analysis_service import (
+    AISecurityAnalysisService,
+    get_ai_security_analysis_service,
+)
 
 __all__ = [
     "LAYER_NUMBER",
@@ -72,4 +89,17 @@ __all__ = [
     "audit_baseline_data_quality",
     "audit_baseline_coverage",
     "build_baseline_profile",
+    # Layer 06 AI-Powered Security Analysis
+    "AISecurityAnalysis",
+    "AttackImplication",
+    "ExecutiveSummary",
+    "PrioritizedFinding",
+    "RemediationStep",
+    "TechnicalSummary",
+    "BaseAIAnalysisProvider",
+    "DeterministicAIProvider",
+    "ConfigurableRealLLMProvider",
+    "AISecurityAnalysisService",
+    "get_ai_security_analysis_service",
 ]
+

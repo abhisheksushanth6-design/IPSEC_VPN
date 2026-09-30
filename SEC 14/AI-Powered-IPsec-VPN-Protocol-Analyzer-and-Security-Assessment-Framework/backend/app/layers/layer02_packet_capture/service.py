@@ -28,6 +28,7 @@ from app.schemas.live_capture import (
     CaptureSourceInterface,
     LiveCaptureInterfacesResponse,
     LiveCaptureStatusResponse,
+    ScapyPacketSummary,
     StopCaptureResponse,
 )
 from app.services.packet_service import packet_service
@@ -82,8 +83,9 @@ class LiveCaptureService:
                 mac = raw.get(f"macaddress{i}")
                 adapter_name = raw.get(f"hostonlyadapter{i}") or raw.get(f"natnet{i}") or nic_mode
                 is_recommended = (nic_mode == "hostonly" and vm.role in {"server", "client"})
+                is_running = vm.state.lower() == "running"
 
-                if is_recommended and not default_vm:
+                if is_recommended and is_running and not default_vm:
                     default_vm = vm.name
                     default_nic = i
 
@@ -102,8 +104,18 @@ class LiveCaptureService:
                 )
 
         if not default_vm and interfaces:
-            default_vm = interfaces[0].vm_name
-            default_nic = interfaces[0].nic_number
+            # Fallback to recommended, then running, then first
+            recs = [iface for iface in interfaces if iface.is_recommended]
+            running = [iface for iface in interfaces if iface.vm_state.lower() == "running"]
+            if recs:
+                default_vm = recs[0].vm_name
+                default_nic = recs[0].nic_number
+            elif running:
+                default_vm = running[0].vm_name
+                default_nic = running[0].nic_number
+            else:
+                default_vm = interfaces[0].vm_name
+                default_nic = interfaces[0].nic_number
 
         return LiveCaptureInterfacesResponse(
             interfaces=interfaces,
@@ -127,10 +139,32 @@ class LiveCaptureService:
         packet_count = 0
         file_size = 0
 
+        recent_packets: list[ScapyPacketSummary] = []
         if output_file and os.path.isfile(output_file):
             try:
                 file_size = os.path.getsize(output_file)
                 packet_count = count_pcap_packets(output_file)
+                if state in {"CAPTURING", "COMPLETED"} and packet_count > 0:
+                    from app.layers.layer02_packet_capture.scapy_reader import parse_pcap_with_scapy
+                    try:
+                        pcap_summary = parse_pcap_with_scapy(output_file, max_packets=200)
+                        recent_packets = [
+                            ScapyPacketSummary(
+                                packet_number=p.packet_number,
+                                timestamp=p.timestamp,
+                                source_ip=p.source_ip,
+                                destination_ip=p.destination_ip,
+                                protocol=p.protocol,
+                                source_port=p.source_port,
+                                destination_port=p.destination_port,
+                                length=p.length,
+                                summary=p.summary,
+                                is_ipsec=p.is_ipsec,
+                            )
+                            for p in pcap_summary.packets[-30:]
+                        ]
+                    except Exception as parse_err:
+                        logger.debug("Live packet parsing non-critical warning: %s", parse_err)
             except Exception:
                 pass
 
@@ -147,6 +181,7 @@ class LiveCaptureService:
             elapsed_seconds=round(elapsed, 1),
             packet_count=packet_count,
             file_size_bytes=file_size,
+            recent_packets=recent_packets,
             error=last_err,
         )
 
@@ -328,6 +363,14 @@ class LiveCaptureService:
                                 anomaly_svc.run_inference(AnomalyInferenceRequest(session_id=s.id))
                             except Exception as ex:
                                 logger.warning("Downstream Layer 08 ML inference error for %s: %s", s.id, ex)
+
+                            # Layer 08: Supervised Random Forest Traffic Classifier (Encrypted ESP)
+                            try:
+                                from app.layers.layer08_ai_ml.traffic_classifier import TrafficClassificationService
+                                traf_classifier_svc = TrafficClassificationService(db)
+                                traf_classifier_svc.classify_session(s)
+                            except Exception as ex:
+                                logger.warning("Downstream Layer 08 RF classification error for %s: %s", s.id, ex)
 
                             # Layer 09: Vulnerability Engine
                             try:

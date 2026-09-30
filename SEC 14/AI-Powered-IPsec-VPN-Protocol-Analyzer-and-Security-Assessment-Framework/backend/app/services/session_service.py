@@ -178,7 +178,8 @@ class SessionService:
             direction=s.direction, state=s.state, correlation=s.correlation, start_time=s.start_time, end_time=s.end_time,
             duration_seconds=s.duration_seconds, packet_count=s.packet_count, byte_count=s.byte_count,
             ike_packets=s.ike_packets, esp_packets=s.esp_packets, ah_packets=s.ah_packets, ike_version=s.ike_version,
-            nat_traversal=s.nat_traversal, detail_json=json.dumps(detail), discovered_at=now,
+            nat_traversal=s.nat_traversal, ipsec_mode=s.ipsec_mode, ip_version=s.ip_version,
+            detail_json=json.dumps(detail), discovered_at=now,
         )
 
     @staticmethod

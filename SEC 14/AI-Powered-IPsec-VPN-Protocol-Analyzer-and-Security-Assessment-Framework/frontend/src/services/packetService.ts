@@ -58,6 +58,12 @@ export const packetService = {
   fetchPacket(id: string, signal?: AbortSignal): Promise<PacketAnalysisResult> {
     return requestJson<PacketAnalysisResult>(`/api/packets/${encodeURIComponent(id)}`, signal);
   },
+  fetchProtocolAnalysis(signal?: AbortSignal): Promise<import('@/types').ProtocolAnalysisReport> {
+    return requestJson<import('@/types').ProtocolAnalysisReport>('/api/packets/protocol-analysis', signal);
+  },
+  fetchAnomalies(signal?: AbortSignal): Promise<import('@/types').ProtocolAnomaly[]> {
+    return requestJson<import('@/types').ProtocolAnomaly[]>('/api/packets/anomalies', signal);
+  },
   uploadCapture(file: File): Promise<AnalysisStatus> {
     const form = new FormData();
     form.append('file', file, file.name);

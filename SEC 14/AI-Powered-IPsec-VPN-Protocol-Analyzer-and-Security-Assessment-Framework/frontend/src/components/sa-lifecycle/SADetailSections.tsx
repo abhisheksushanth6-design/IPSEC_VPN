@@ -2,7 +2,7 @@ import { ArrowDown, ArrowUpRight, Cable, Clock, KeyRound, Lock } from 'lucide-re
 import { Link } from 'react-router-dom';
 
 import { ChartCard, EmptyChartState, TrafficTimelineChart } from '@/components/dashboard';
-import { formatBytes, formatDuration, formatSessionTime } from '@/components/ipsec-sessions';
+import { formatBytes, formatDuration, formatSessionTime, formatTimeOnly, parseSessionDate } from '@/components/ipsec-sessions';
 import { DetailSection } from '@/components/live-monitor';
 import { EmptyState } from '@/components/states';
 import { ProtocolBadge } from '@/components/status';
@@ -29,7 +29,7 @@ export function SALifecycleGraph({ sa }: { sa: SecurityAssociation }) {
   const visited = new Set(sa.state_history.map((h) => h.state));
   const unknown = sa.state === 'UNKNOWN' || sa.state === 'FAILED' || sa.state === 'EXPIRED';
   return (
-    <figure aria-label="SA lifecycle path" className="rounded border border-border bg-background/60 p-3">
+    <figure aria-label="SA protocol state path" className="rounded border border-border bg-background/60 p-3">
       {unknown ? <p className="text-xs text-muted">{sa.state === 'UNKNOWN' ? 'Unknown state — the lifecycle path cannot be drawn from the available evidence.' : `Path ended in ${sa.state}.`}</p> : null}
       <ol className="flex flex-wrap items-center gap-1">
         {LIFECYCLE_PATH.map((step, i) => {
@@ -83,7 +83,7 @@ export function SAStateHistory({ sa }: { sa: SecurityAssociation }) {
     <section className="border-t border-border py-3">
       <h3 className="text-2xs font-medium text-muted">State history</h3>
       <ol aria-label="State history" className="mt-2 space-y-1">
-        {sa.state_history.map((h, i) => <li key={i} className="flex items-center gap-3 text-xs"><span className="w-28 shrink-0 font-mono tabular-nums text-muted">{h.timestamp ? formatSessionTime(h.timestamp).slice(11, 23) : 'no timestamp'}</span><SAStateBadge state={h.state} /></li>)}
+        {sa.state_history.map((h, i) => <li key={i} className="flex items-center gap-3 text-xs"><span className="w-28 shrink-0 font-mono tabular-nums text-muted">{h.timestamp ? formatTimeOnly(h.timestamp) : 'no timestamp'}</span><SAStateBadge state={h.state} /></li>)}
       </ol>
     </section>
   );
@@ -92,7 +92,7 @@ export function SAStateHistory({ sa }: { sa: SecurityAssociation }) {
 export function SALifecycleTimeline({ sa }: { sa: SecurityAssociation }) {
   if (sa.timeline.length === 0) return <EmptyState icon={Clock} title="No lifecycle events" />;
   return (
-    <ol aria-label="SA lifecycle timeline" className="relative ml-2 border-l border-border pl-4">
+    <ol aria-label="SA protocol state timeline" className="relative ml-2 border-l border-border pl-4">
       {sa.timeline.map((e, i) => {
         const transition = e.previous_state !== e.new_state;
         return (
@@ -173,10 +173,14 @@ export function ChildSAInformation({ sa, onSelect }: { sa: SecurityAssociation; 
 export function SAActivity({ sa }: { sa: SecurityAssociation }) {
   const points: TrafficPoint[] = [];
   if (sa.packets.length > 0 && sa.start_time && sa.last_seen) {
-    const s = Date.parse(sa.start_time); const e = Math.max(Date.parse(sa.last_seen), s + 1);
-    const buckets = 24; const width = (e - s) / buckets; const counts = new Array<number>(buckets).fill(0);
-    for (const p of sa.packets) { const t = Date.parse(p.timestamp); if (!Number.isNaN(t)) counts[Math.min(Math.floor((t - s) / width), buckets - 1)]! += 1; }
-    counts.forEach((c, i) => points.push({ timestamp: new Date(s + i * width).toISOString(), packets: c }));
+    const sDate = parseSessionDate(sa.start_time);
+    const eDate = parseSessionDate(sa.last_seen);
+    if (sDate && eDate) {
+      const s = sDate.getTime(); const e = Math.max(eDate.getTime(), s + 1);
+      const buckets = 24; const width = (e - s) / buckets; const counts = new Array<number>(buckets).fill(0);
+      for (const p of sa.packets) { const pt = parseSessionDate(p.timestamp)?.getTime(); if (pt !== undefined && !Number.isNaN(pt)) counts[Math.min(Math.floor((pt - s) / width), buckets - 1)]! += 1; }
+      counts.forEach((c, i) => points.push({ timestamp: new Date(s + i * width).toISOString(), packets: c }));
+    }
   }
   return (
     <ChartCard title="SA activity" description="Packets per interval across the SA's lifetime.">
@@ -197,7 +201,7 @@ export function SAPacketList({ sa, onSelectPacket }: { sa: SecurityAssociation; 
           <tbody>
             {sa.packets.map((p) => (
               <tr key={p.id} tabIndex={0} onClick={() => onSelectPacket(p.id)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectPacket(p.id); } }} className="cursor-pointer border-b border-border text-xs last:border-b-0 hover:bg-elevated/60">
-                <td className="whitespace-nowrap px-3 py-1.5 font-mono text-muted">{p.timestamp ? formatSessionTime(p.timestamp).slice(11, 23) : '—'}</td>
+                <td className="whitespace-nowrap px-3 py-1.5 font-mono text-muted">{p.timestamp ? formatTimeOnly(p.timestamp) : '—'}</td>
                 <td className="px-3 py-1.5"><ProtocolBadge protocol={p.protocol === 'IP' || p.protocol === 'OTHER' ? 'IP' : p.protocol} /></td>
                 <td className="whitespace-nowrap px-3 py-1.5 font-mono text-secondary">{p.source}</td>
                 <td className="whitespace-nowrap px-3 py-1.5 font-mono text-secondary">{p.destination}</td>

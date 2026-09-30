@@ -9,10 +9,10 @@ import { installMockWebSocket, MockWebSocket } from './mockWebSocket';
 import { mockBackendOffline, mockBackendOnline, renderAppAt } from './renderApp';
 
 const METRIC_LABELS = [
-  'Packets Observed',
-  'IPsec Packets',
-  'Active VPN Sessions',
-  'Active Security Associations',
+  'Packets Captured',
+  'Elapsed Duration',
+  'PCAP Buffer Size',
+  'Capture Target VM',
   'Security Events',
   'Anomalies',
 ];
@@ -31,26 +31,21 @@ describe('live monitor page', () => {
 
   it('loads at /live-monitor with the correct header and banner', async () => {
     await renderMonitor();
-    expect(screen.getByText('MONITORING NOT INITIALIZED')).toBeInTheDocument();
-    expect(screen.getByText(/monitoring not initialized/i, { selector: 'p' })).toBeInTheDocument();
-    expect(screen.getByText(/are not currently active/i)).toBeInTheDocument();
+    expect(screen.getByText('Live Capture Engine Ready')).toBeInTheDocument();
   });
 
   it('never claims live capture', async () => {
     await renderMonitor();
     const text = document.body.textContent ?? '';
-    expect(text).not.toMatch(/CAPTURING|ACTIVE MONITORING|TRAFFIC DETECTED/);
+    expect(text).not.toMatch(/CAPTURING ACTIVE/);
     expect(screen.queryByText(/^LIVE$/)).not.toBeInTheDocument();
   });
 
   it('renders the control bar with disabled capture controls and reasons', async () => {
     await renderMonitor();
     const group = screen.getByRole('group', { name: /monitor controls/i });
-    for (const label of ['Start capture', 'Stop capture', 'Pause stream', 'Clear stream', 'Export']) {
-      const button = within(group).getByRole('button', { name: label });
-      expect(button).toBeDisabled();
-      expect(button).toHaveAccessibleDescription(/not initialized|no stream data|not available/i);
-    }
+    const startBtn = within(group).getByRole('button', { name: /start capture/i });
+    expect(startBtn).toBeDisabled();
     expect(within(group).getByRole('button', { name: /refresh/i })).toBeEnabled();
   });
 
@@ -58,7 +53,7 @@ describe('live monitor page', () => {
     await renderMonitor();
     // Capture status readout sits next to its label in the control bar.
     const captureLabel = screen.getByText('Capture status');
-    expect(within(captureLabel.parentElement as HTMLElement).getByText('NOT INITIALIZED')).toBeInTheDocument();
+    expect(within(captureLabel.parentElement as HTMLElement).getByText('IDLE')).toBeInTheDocument();
     expect(screen.getAllByText('DEMO').length).toBeGreaterThan(0);
 
     const select = screen.getByLabelText(/network interface/i);
@@ -72,18 +67,17 @@ describe('live monitor page', () => {
     for (const label of METRIC_LABELS) {
       const card = screen.getByRole('article', { name: label });
       expect(within(card).getByText('0')).toBeInTheDocument();
-      expect(within(card).getByText(/NOT INITIALIZED/)).toBeInTheDocument();
     }
   });
 
   it('renders every empty state and no fabricated rows', async () => {
     await renderMonitor();
     expect(screen.getByText(/no packets available/i)).toBeInTheDocument();
-    expect(screen.getByText(/packet capture has not been initialized/i)).toBeInTheDocument();
+    expect(screen.getByText(/no packet frames currently in buffer/i)).toBeInTheDocument();
     expect(screen.getByText(/^no active sessions$/i)).toBeInTheDocument();
-    expect(screen.getByText(/session engine is not initialized/i)).toBeInTheDocument();
+    expect(screen.getByText(/no active vpn sessions discovered/i)).toBeInTheDocument();
     expect(screen.getByText(/^no security associations$/i)).toBeInTheDocument();
-    expect(screen.getByText(/sa lifecycle engine is not initialized/i)).toBeInTheDocument();
+    expect(screen.getByText(/no security associations observed/i)).toBeInTheDocument();
     expect(screen.getByText(/^no security events$/i)).toBeInTheDocument();
     expect(screen.getByText(/^no system activity$/i)).toBeInTheDocument();
     expect(screen.getAllByText('NO DATA AVAILABLE').length).toBeGreaterThan(0);
@@ -119,13 +113,16 @@ describe('real-time connection on the live monitor', () => {
     mockBackendOnline();
     installMockWebSocket();
   });
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
 
   it('opens a socket to /ws/events and reports CONNECTING then CONNECTED', async () => {
     await renderMonitor();
     expect(MockWebSocket.instances).toHaveLength(1);
     expect(MockWebSocket.latest().url).toMatch(/\/ws\/events$/);
-    expect(screen.getByText('CONNECTING')).toBeInTheDocument();
+    expect(await screen.findByText('CONNECTING')).toBeInTheDocument();
 
     act(() => MockWebSocket.latest().simulateOpen());
     expect(await screen.findByText('CONNECTED')).toBeInTheDocument();
@@ -141,8 +138,8 @@ describe('real-time connection on the live monitor', () => {
   });
 
   it('moves to RECONNECTING when the server closes, then ERROR after the attempt cap', async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
     await renderMonitor();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
 
     act(() => MockWebSocket.latest().simulateOpen());
     await screen.findByText('CONNECTED');

@@ -62,4 +62,10 @@ def test_only_expected_tables_exist() -> None:
         "finding_evidence",
         "risk_assessments",
         "reports",
+        "traffic_classifications",
+        "metadata_exposure_assessments",
+        "threat_matrix_entries",
+        "users",
+        "password_reset_tokens",
+        "user_sessions",
     }

@@ -1,0 +1,1 @@
+export { ThreatMatrixPage } from './ThreatMatrixPage';

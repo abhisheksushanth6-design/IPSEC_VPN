@@ -182,7 +182,8 @@ class SALifecycleService:
             ike_version=sa.ike_version, initiator_spi=sa.initiator_spi, responder_spi=sa.responder_spi, spi=sa.spi, start_time=sa.start_time,
             last_seen=sa.last_seen, duration_seconds=sa.duration_seconds, packet_count=sa.packet_count, byte_count=sa.byte_count,
             nat_traversal=sa.nat_traversal, parent_sa_id=sa.parent_sa_id, association=sa.association, rekey_count=sa.rekey_count,
-            session_id=session_id, detail_json=json.dumps(detail), discovered_at=now,
+            session_id=session_id, ipsec_mode=sa.ipsec_mode, ip_version=sa.ip_version,
+            detail_json=json.dumps(detail), discovered_at=now,
         )
 
     @staticmethod

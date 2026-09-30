@@ -6,7 +6,8 @@ auditable security assessment PDF reports.
 
 from __future__ import annotations
 
-from typing import List
+import logging
+from typing import Any, List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import FileResponse
@@ -18,6 +19,8 @@ from app.layers.layer14_reports.schemas import (
     ReportMetadataDTO,
 )
 from app.layers.layer14_reports.service import report_service
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/reports", tags=["reports"])
 
@@ -31,6 +34,7 @@ def generate_report(
     try:
         return report_service.generate_report(db, request)
     except Exception as exc:
+        logger.error("Report generation failed: %s", exc, exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Report generation failed: {exc}",
@@ -46,30 +50,61 @@ def list_reports(db: Session = Depends(get_db)) -> List[ReportMetadataDTO]:
 @router.get("/{report_id}", response_model=ReportMetadataDTO, summary="Get report metadata")
 def get_report(report_id: str, db: Session = Depends(get_db)) -> ReportMetadataDTO:
     """Retrieve metadata for a specific generated assessment report."""
-    row = report_service.get_report(db, report_id)
+    if not report_id or not report_id.strip():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Missing report ID")
+    row = report_service.get_report(db, report_id.strip())
     if not row:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Report not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Report '{report_id}' not found")
     return report_service._to_dto(row)
 
 
 @router.get("/{report_id}/download", summary="Download report PDF file")
 def download_report(report_id: str, db: Session = Depends(get_db)) -> FileResponse:
     """Download the generated report PDF file with safe disposition headers."""
-    row = report_service.get_report(db, report_id)
-    if not row:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Report record not found")
+    clean_id = (report_id or "").strip()
+    if not clean_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Missing or invalid report ID")
 
-    pdf_path = report_service.get_report_pdf_path(db, report_id)
+    logger.info("PDF download requested for report_id: %s", clean_id)
+
+    row = report_service.get_report(db, clean_id)
+    if not row:
+        logger.warning("PDF download failed: report '%s' not found in database", clean_id)
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Report record '{clean_id}' not found",
+        )
+
+    pdf_path = report_service.get_report_pdf_path(db, clean_id)
     if not pdf_path or not pdf_path.is_file():
+        logger.error("PDF download failed: unable to resolve or generate PDF for report %s", clean_id)
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="PDF file not found on disk or path invalid",
         )
 
+    file_size = pdf_path.stat().st_size
+    filename = row.filename or f"ipsec-assessment-{clean_id.lower()}.pdf"
+    if not filename.endswith(".pdf"):
+        filename += ".pdf"
+
+    resolved_abs = str(pdf_path.resolve())
+    logger.info(
+        "Serving PDF download: report_id=%s, filename=%s, path=%s, size=%d bytes",
+        clean_id,
+        filename,
+        resolved_abs,
+        file_size,
+    )
+
     return FileResponse(
-        path=str(pdf_path),
+        path=resolved_abs,
         media_type="application/pdf",
-        filename=row.filename,
+        filename=filename,
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Content-Length": str(file_size),
+        },
     )
 
 

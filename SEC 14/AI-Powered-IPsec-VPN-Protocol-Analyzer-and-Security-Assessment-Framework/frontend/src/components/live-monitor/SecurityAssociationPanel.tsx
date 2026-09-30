@@ -13,7 +13,7 @@ export function SecurityAssociationPanel({ associations, selectedId, onSelect }:
   return (
     <EntityTable<MonitorSecurityAssociation>
       title="Security Associations"
-      description="ESP and AH associations tracked by the SA lifecycle engine."
+      description="ESP and AH associations tracked by the SA & protocol state engine."
       icon={KeyRound}
       rows={associations}
       selectedId={selectedId}

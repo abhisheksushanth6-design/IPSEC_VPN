@@ -4,11 +4,13 @@ import type { ApiErrorBody } from '@/types';
 /** An error raised when the backend responds with a non-2xx status. */
 export class ApiError extends Error {
   readonly status: number;
+  readonly code: string;
 
-  constructor(message: string, status: number) {
+  constructor(message: string, status: number, code: string = 'REQUEST_FAILED') {
     super(message);
     this.name = 'ApiError';
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -42,15 +44,21 @@ export async function requestJson<T>(path: string, signal?: AbortSignal): Promis
   if (!response.ok) {
     // The backend returns a safe envelope; internal detail is never surfaced.
     let message = `The request failed with status ${response.status}.`;
+    let code = 'REQUEST_FAILED';
     try {
-      const body = (await response.json()) as ApiErrorBody;
+      const body = (await response.json()) as ApiErrorBody & { message?: string };
       if (typeof body.error === 'string') {
+        code = body.error;
+      }
+      if (typeof body.message === 'string') {
+        message = body.message;
+      } else if (typeof body.error === 'string') {
         message = body.error;
       }
     } catch {
       // Body was not JSON; keep the generic message.
     }
-    throw new ApiError(message, response.status);
+    throw new ApiError(message, response.status, code);
   }
 
   return (await response.json()) as T;

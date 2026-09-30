@@ -40,7 +40,8 @@ ARCHITECTURE_LAYERS: tuple[ArchitectureLayer, ...] = (
         package="layer01_test_environment",
         status=LayerStatus.OPERATIONAL,
         description=(
-            "Provides a controlled environment for generating, testing, and validating IPsec VPN behavior."
+            "Provides a controlled environment for generating, testing, and validating IPsec VPN behavior "
+            "across Tunnel/Transport modes, AES ciphers, DH groups, PFS configurations, and traffic profiles."
         ),
     ),
     ArchitectureLayer(
@@ -49,7 +50,8 @@ ARCHITECTURE_LAYERS: tuple[ArchitectureLayer, ...] = (
         package="layer02_packet_capture",
         status=LayerStatus.OPERATIONAL,
         description=(
-            "Collects network traffic and IPsec-related packets for downstream analysis."
+            "Collects network traffic and IPsec-related packets (IKE negotiation, ESP, AH, and cleartext) "
+            "from live hypervisor network interfaces and captured PCAP/PCAPNG streams for downstream analysis."
         ),
     ),
     ArchitectureLayer(
@@ -59,17 +61,17 @@ ARCHITECTURE_LAYERS: tuple[ArchitectureLayer, ...] = (
         status=LayerStatus.OPERATIONAL,
         description=(
             "Examines packet structures, network headers, IKE exchanges, and IPsec protocol information. "
-            "Decodes pcap/pcapng captures: IPv4/IPv6, TCP/UDP/ICMP, IKE, ESP, AH and NAT-T."
+            "Decodes IPv4/IPv6, TCP/UDP/ICMP, IKEv1/v2, ESP, AH, Tunnel/Transport modes, and cryptographic transforms."
         ),
     ),
     ArchitectureLayer(
         number=4,
-        name="Security State & SA Lifecycle Engine",
+        name="Security Association & Protocol State Analysis",
         package="layer04_sa_lifecycle",
         status=LayerStatus.OPERATIONAL,
         description=(
-            "Tracks Security Associations and their lifecycle states across VPN sessions. "
-            "Derives IKE and child SAs with evidence-cited transitions from Layer 03 output."
+            "Analyzes Security Association characteristics, parameters, protocol state, SA lifetimes, "
+            "rekey transitions, and control-plane correlation between IKE and Child SAs."
         ),
     ),
     ArchitectureLayer(
@@ -78,91 +80,59 @@ ARCHITECTURE_LAYERS: tuple[ArchitectureLayer, ...] = (
         package="layer05_feature_engineering",
         status=LayerStatus.OPERATIONAL,
         description=(
-            "Transforms protocol and session observations into structured features for security analysis. "
-            "Extracts validated, versioned packet, session and SA feature vectors from Layer 03 and 04 output."
+            "Transforms protocol and session observations into structured feature vectors for security analysis, "
+            "extracting timing, sizing, frequency, directionality, header, and SA-related statistical characteristics."
         ),
     ),
     ArchitectureLayer(
         number=6,
-        name="Session Fingerprinting & Baseline Profiling",
+        name="IPsec Session Fingerprinting",
         package="layer06_session_fingerprinting",
         status=LayerStatus.OPERATIONAL,
         description=(
-            "Establishes behavioral session fingerprints and reference baselines from observed IPsec VPN session features."
+            "Constructs compact, deterministic behavioral session fingerprints from observable flow characteristics "
+            "(packet sizes, timing, bursts, directionality, and metadata) without payload decryption."
         ),
     ),
     ArchitectureLayer(
         number=7,
-        name="Security Drift Detection",
-        package="layer07_drift_detection",
+        name="AI-Based Protocol & Traffic Classification",
+        package="layer08_ai_ml",
         status=LayerStatus.OPERATIONAL,
         description=(
-            "Identifies deviations between observed behavior and established security baselines."
+            "Performs multi-criteria AI identification of IPsec protocols, IKE versions, VPN modes (Tunnel/Transport), "
+            "cryptographic configurations, and classifies encrypted ESP payloads (VoIP, Web browsing, Email, ICMP, "
+            "Video streaming, Other) with calibrated confidence scores."
         ),
     ),
     ArchitectureLayer(
         number=8,
-        name="AI / ML Anomaly Detection Engine",
-        package="layer08_ai_ml",
+        name="Security Assessment Engine",
+        package="layer09_vulnerability_engine",
         status=LayerStatus.OPERATIONAL,
         description=(
-            "Uses machine-learning techniques (Isolation Forest) to identify potentially abnormal "
-            "VPN behavior relative to established behavioral baselines with explainable evidence."
+            "Evaluates cryptographic strength, configuration compliance, SA parameters, key lifetime, "
+            "replay protection, forward secrecy (PFS), cipher suite strength, and 5-vector metadata exposure."
         ),
     ),
     ArchitectureLayer(
         number=9,
-        name="Security Rule & Vulnerability Engine",
-        package="layer09_vulnerability_engine",
-        status=LayerStatus.OPERATIONAL,
-        description=(
-            "Evaluates observations against deterministic security rules, cryptographic criteria, "
-            "protocol constraints, and vulnerability-detection logic with explainable evidence."
-        ),
-    ),
-    ArchitectureLayer(
-        number=10,
         name="Risk Assessment & Decision Engine",
         package="layer10_risk_engine",
         status=LayerStatus.OPERATIONAL,
         description=(
-            "Combines security findings into an overall risk assessment and decision context."
+            "Computes overall security and risk scores, correlates findings with MITRE ATT&CK and NIST SP 800-77 "
+            "threat matrix entries, and provides explainable evidence and actionable recommendations."
         ),
     ),
     ArchitectureLayer(
-        number=11,
-        name="Security Databases (SQLite)",
-        package="layer11_database",
-        status=LayerStatus.OPERATIONAL,
-        description=(
-            "Stores structured configuration, analysis, security findings, and system information."
-        ),
-    ),
-    ArchitectureLayer(
-        number=12,
-        name="Backend & API (FastAPI)",
-        package="layer12_api",
-        status=LayerStatus.OPERATIONAL,
-        description=(
-            "Provides the application backend, API services, business logic, and integration layer."
-        ),
-    ),
-    ArchitectureLayer(
-        number=13,
-        name="Web Dashboard",
-        package="layer13_dashboard",
-        status=LayerStatus.OPERATIONAL,
-        description=(
-            "Provides the analyst-facing interface for monitoring, analysis, visualization, and security assessment."
-        ),
-    ),
-    ArchitectureLayer(
-        number=14,
-        name="Report Generation (PDF)",
+        number=10,
+        name="Dashboard & Report Generation",
         package="layer14_reports",
         status=LayerStatus.OPERATIONAL,
         description=(
-            "Generates structured security assessment reports for analysis results and findings."
+            "Presents interactive analyst dashboards and generates auditable Executive and Technical "
+            "PDF security assessment reports distinguishing observed, inferred, predicted, and unavailable data."
         ),
     ),
 )
